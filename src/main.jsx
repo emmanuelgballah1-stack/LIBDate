@@ -34,92 +34,9 @@ import {
 
 import "./styles.css";
 
-/* =========================
-   SAMPLE PEOPLE
-========================= */
-
-const people = [
-  {
-    id: 1,
-    name: "Sarah K.",
-    age: 24,
-    city: "Sinkor, Monrovia",
-    distance: "2 km away",
-    image:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=85",
-    bio: "I love music, good conversations, family and discovering new places.",
-    interests: ["Music", "Travel", "Movies"],
-    intention: "Serious relationship",
-    compatibility: 92,
-    status: "Enjoying a beautiful day in Monrovia 🌴",
-    photos: [
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=85"
-    ]
-  },
-  {
-    id: 2,
-    name: "Martha T.",
-    age: 26,
-    city: "Paynesville",
-    distance: "5 km away",
-    image:
-      "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=900&q=85",
-    bio: "Easy-going, ambitious and always ready for a good laugh.",
-    interests: ["Food", "Business", "Beach"],
-    intention: "Dating",
-    compatibility: 86,
-    status: "Good food, good music, good energy ✨",
-    photos: [
-      "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=900&q=85"
-    ]
-  },
-  {
-    id: 3,
-    name: "Jessica P.",
-    age: 23,
-    city: "Congo Town, Monrovia",
-    distance: "7 km away",
-    image:
-      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=85",
-    bio: "Creative soul. I enjoy art, books, music and meaningful conversations.",
-    interests: ["Art", "Books", "Music"],
-    intention: "Serious relationship",
-    compatibility: 81,
-    status: "Working on something creative today 🎨",
-    photos: [
-      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=85"
-    ]
-  },
-  {
-    id: 4,
-    name: "Rebecca W.",
-    age: 27,
-    city: "Buchanan",
-    distance: "124 km away",
-    image:
-      "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=900&q=85",
-    bio: "Family-oriented and curious about the world.",
-    interests: ["Travel", "Family", "Cooking"],
-    intention: "Marriage",
-    compatibility: 78,
-    status: "Family time ❤️",
-    photos: [
-      "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=85"
-    ]
-  }
-];
-
-/* =========================
+/* =========================================================
    HELPERS
-========================= */
+========================================================= */
 
 function FlagWatermark() {
   return (
@@ -135,7 +52,6 @@ function Logo() {
   return (
     <div className="logo">
       <span className="logo-mark">L</span>
-
       <span>
         LIB<span className="blue">Date</span>
       </span>
@@ -149,9 +65,7 @@ function calculateAge(dateString) {
   const today = new Date();
   const birthDate = new Date(dateString);
 
-  if (Number.isNaN(birthDate.getTime())) {
-    return 0;
-  }
+  if (Number.isNaN(birthDate.getTime())) return 0;
 
   let age =
     today.getFullYear() -
@@ -185,10 +99,6 @@ function isValidEmail(email) {
   );
 }
 
-/* =========================
-   FILE TO DATA URL
-========================= */
-
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     if (!file) {
@@ -198,25 +108,75 @@ function fileToDataUrl(file) {
 
     const reader = new FileReader();
 
-    reader.onload = () => {
-      resolve(reader.result);
-    };
+    reader.onload = () => resolve(reader.result);
 
-    reader.onerror = () => {
+    reader.onerror = () =>
       reject(
         new Error(
           "Unable to save the profile photo."
         )
       );
-    };
 
     reader.readAsDataURL(file);
   });
 }
 
-/* =========================
+function getDisplayName(profile) {
+  return (
+    profile?.display_name ||
+    `${profile?.first_name || ""} ${
+      profile?.last_name || ""
+    }`.trim() ||
+    "LIBDate User"
+  );
+}
+
+function getProfileImage(profile) {
+  return (
+    profile?.profile_photo_path ||
+    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=85"
+  );
+}
+
+function mapDatabaseProfile(profile) {
+  const name = getDisplayName(profile);
+
+  const image = getProfileImage(profile);
+
+  return {
+    id: `db-${profile.id}`,
+    databaseId: profile.id,
+    name,
+    age: calculateAge(profile.dob) || 18,
+    city: profile.location || "Liberia",
+    distance: "Nearby",
+    image,
+    bio: "New to LIBDate.",
+    interests: [],
+    intention: "Dating",
+    compatibility: 80,
+    status: "New to LIBDate ✨",
+    photos: [image]
+  };
+}
+
+function normalizeMatch(match, currentUserId) {
+  if (!match) return null;
+
+  const otherUserId =
+    match.user_one_id === currentUserId
+      ? match.user_two_id
+      : match.user_one_id;
+
+  return {
+    id: match.id,
+    otherUserId
+  };
+}
+
+/* =========================================================
    AUTH SCREEN
-========================= */
+========================================================= */
 
 function AuthScreen({ onAuthenticated }) {
   const [mode, setMode] = useState("login");
@@ -226,7 +186,6 @@ function AuthScreen({ onAuthenticated }) {
       <FlagWatermark />
 
       <div className="auth-card">
-
         <div className="auth-logo">
           <Logo />
         </div>
@@ -242,15 +201,14 @@ function AuthScreen({ onAuthenticated }) {
             onLogin={() => setMode("login")}
           />
         )}
-
       </div>
     </div>
   );
 }
 
-/* =========================
+/* =========================================================
    LOGIN
-========================= */
+========================================================= */
 
 function LoginForm({ onLogin, onSignUp }) {
   const [email, setEmail] = useState("");
@@ -294,240 +252,109 @@ function LoginForm({ onLogin, onSignUp }) {
     try {
       setLoading(true);
 
-      const { data, error: authError } =
+      const {
+        data,
+        error: authError
+      } =
         await supabase.auth.signInWithPassword({
           email: normalizedEmail,
           password
         });
 
-      if (authError) {
-        throw authError;
-      }
+      if (authError) throw authError;
 
-      const currentUser =
-        data?.user;
-
-      if (!currentUser) {
+      if (!data?.user) {
         throw new Error(
           "Unable to identify your account."
         );
       }
 
-      const metadata =
-        currentUser.user_metadata || {};
-
-      let savedProfile = null;
-
-      const savedProfileText =
-        localStorage.getItem(
-          "libdate_profile"
-        );
-
-      if (savedProfileText) {
-        try {
-          savedProfile =
-            JSON.parse(
-              savedProfileText
-            );
-        } catch {
-          savedProfile = null;
-        }
-      }
-
-      if (savedProfile?.email) {
-        const savedEmail =
-          (savedProfile.email || "")
-            .replace(/\\/g, "")
-            .trim()
-            .toLowerCase();
-
-        if (
-          savedEmail &&
-          savedEmail !== normalizedEmail
-        ) {
-          savedProfile = null;
-        }
-      }
-
-      /*
-       * First try to load the real profile
-       * from Supabase.
-       *
-       * This is important because a user
-       * may log in from another computer
-       * or browser.
-       */
-
-      let databaseProfile = null;
+      const user = data.user;
 
       const {
         data: profileData,
-        error: profileLoadError
+        error: profileError
       } =
         await supabase
           .from("profiles")
-          .select(
-            `
-              id,
-              first_name,
-              last_name,
-              display_name,
-              location,
-              dob,
-              phone,
-              profile_photo_path,
-              live_selfie_path,
-              created_at
-            `
-          )
-          .eq(
-            "id",
-            currentUser.id
-          )
+          .select(`
+            id,
+            first_name,
+            last_name,
+            display_name,
+            location,
+            dob,
+            phone,
+            profile_photo_path,
+            live_selfie_path,
+            created_at
+          `)
+          .eq("id", user.id)
           .maybeSingle();
 
-      if (
-        profileLoadError
-      ) {
+      if (profileError) {
         console.error(
-          "Supabase profile load during login:",
-          profileLoadError
+          "Profile loading error:",
+          profileError
         );
-      } else {
-        databaseProfile =
-          profileData;
       }
 
+      const metadata =
+        user.user_metadata || {};
+
       const profile = {
-        id:
-          currentUser.id,
+        id: user.id,
 
         firstName:
-          databaseProfile?.first_name ||
-          savedProfile?.firstName ||
+          profileData?.first_name ||
           metadata.first_name ||
           "",
 
         lastName:
-          databaseProfile?.last_name ||
-          savedProfile?.lastName ||
+          profileData?.last_name ||
           metadata.last_name ||
           "",
 
         displayName:
-          databaseProfile?.display_name ||
-          savedProfile?.displayName ||
+          profileData?.display_name ||
           metadata.display_name ||
           "",
 
         location:
-          databaseProfile?.location ||
-          savedProfile?.location ||
+          profileData?.location ||
           metadata.location ||
           "",
 
         dob:
-          databaseProfile?.dob ||
-          savedProfile?.dob ||
+          profileData?.dob ||
           metadata.dob ||
           "",
 
-        age:
-          calculateAge(
-            databaseProfile?.dob ||
-            savedProfile?.dob ||
-            metadata.dob ||
-            ""
-          ),
+        age: calculateAge(
+          profileData?.dob ||
+          metadata.dob ||
+          ""
+        ),
 
         phone:
-          databaseProfile?.phone ||
-          savedProfile?.phone ||
-          "",
+          profileData?.phone || "",
 
         email:
-          currentUser.email ||
+          user.email ||
           normalizedEmail,
 
         profilePhoto:
-          databaseProfile?.profile_photo_path ||
-          savedProfile?.profilePhoto ||
+          profileData?.profile_photo_path ||
           "",
 
         liveSelfie:
-          databaseProfile?.live_selfie_path ||
-          savedProfile?.liveSelfie ||
+          profileData?.live_selfie_path ||
           "",
 
         createdAt:
-          databaseProfile?.created_at ||
-          savedProfile?.createdAt ||
+          profileData?.created_at ||
           new Date().toISOString()
       };
-
-      /*
-       * Keep the profile row synchronized.
-       *
-       * No "age" or "email" is sent because
-       * those columns do not exist in your
-       * profiles table.
-       */
-
-      const {
-        error: profileSaveError
-      } =
-        await supabase
-          .from("profiles")
-          .upsert(
-            {
-              id:
-                currentUser.id,
-
-              first_name:
-                profile.firstName,
-
-              last_name:
-                profile.lastName,
-
-              display_name:
-                profile.displayName,
-
-              location:
-                profile.location,
-
-              dob:
-                profile.dob ||
-                null,
-
-              phone:
-                profile.phone ||
-                null,
-
-              profile_photo_path:
-                profile.profilePhoto ||
-                null,
-
-              live_selfie_path:
-                profile.liveSelfie ||
-                null
-            },
-            {
-              onConflict:
-                "id"
-            }
-          );
-
-      if (profileSaveError) {
-        console.error(
-          "Supabase profile sync error during login:",
-          profileSaveError
-        );
-
-        /*
-         * Do not prevent login just because
-         * profile synchronization failed.
-         */
-      }
 
       localStorage.setItem(
         "libdate_profile",
@@ -578,7 +405,6 @@ function LoginForm({ onLogin, onSignUp }) {
         className="auth-form"
         onSubmit={submit}
       >
-
         <label>
           Email address
         </label>
@@ -650,7 +476,6 @@ function LoginForm({ onLogin, onSignUp }) {
             ? "Logging in..."
             : "Log In"}
         </button>
-
       </form>
 
       <div className="auth-divider">
@@ -676,9 +501,9 @@ function LoginForm({ onLogin, onSignUp }) {
   );
 }
 
-/* =========================
-   SIGNUP FLOW
-========================= */
+/* =========================================================
+   SIGNUP
+========================================================= */
 
 function SignupFlow({
   onComplete,
@@ -712,7 +537,6 @@ function SignupFlow({
     setError("");
 
     if (step === 1) {
-
       if (
         !form.firstName.trim() ||
         !form.lastName.trim() ||
@@ -754,7 +578,6 @@ function SignupFlow({
     }
 
     if (step === 2) {
-
       if (!isValidEmail(form.email)) {
         setError(
           "Please enter a valid email address."
@@ -784,7 +607,6 @@ function SignupFlow({
     }
 
     if (step === 3) {
-
       if (!form.profilePhoto) {
         setError(
           "You must upload a profile photo."
@@ -819,10 +641,7 @@ function SignupFlow({
       return;
     }
 
-    if (
-      file.size >
-      10 * 1024 * 1024
-    ) {
+    if (file.size > 10 * 1024 * 1024) {
       setError(
         "Please select an image smaller than 10MB."
       );
@@ -841,10 +660,6 @@ function SignupFlow({
     setError("");
   };
 
-  /* =========================
-     FINISH SIGNUP
-  ========================= */
-
   const finishSignup = async (
     liveSelfie
   ) => {
@@ -857,11 +672,7 @@ function SignupFlow({
           .trim()
           .toLowerCase();
 
-      if (
-        !isValidEmail(
-          normalizedEmail
-        )
-      ) {
+      if (!isValidEmail(normalizedEmail)) {
         setError(
           "Please enter a valid email address."
         );
@@ -911,20 +722,19 @@ function SignupFlow({
       }
 
       const profile = {
-        id:
-          data.user.id,
+        id: data.user.id,
 
         firstName:
-          form.firstName,
+          form.firstName.trim(),
 
         lastName:
-          form.lastName,
+          form.lastName.trim(),
 
         displayName:
-          form.displayName,
+          form.displayName.trim(),
 
         location:
-          form.location,
+          form.location.trim(),
 
         dob:
           form.dob,
@@ -932,8 +742,7 @@ function SignupFlow({
         age:
           calculateAge(form.dob),
 
-        phone:
-          "",
+        phone: "",
 
         email:
           normalizedEmail,
@@ -949,14 +758,7 @@ function SignupFlow({
           new Date().toISOString()
       };
 
-      /*
-       * If email confirmation is disabled,
-       * save immediately because a session
-       * exists.
-       */
-
       if (data.session) {
-
         const {
           error: profileError
         } =
@@ -964,60 +766,46 @@ function SignupFlow({
             .from("profiles")
             .upsert(
               {
-                id:
-                  data.user.id,
+                id: data.user.id,
 
                 first_name:
-                  form.firstName.trim(),
+                  profile.firstName,
 
                 last_name:
-                  form.lastName.trim(),
+                  profile.lastName,
 
                 display_name:
-                  form.displayName.trim(),
+                  profile.displayName,
 
                 location:
-                  form.location.trim(),
+                  profile.location,
 
                 dob:
-                  form.dob,
+                  profile.dob,
 
-                phone:
-                  null,
+                phone: null,
 
                 profile_photo_path:
-                  profilePhotoData ||
-                  form.profilePhotoPreview ||
+                  profile.profilePhoto ||
                   null,
 
                 live_selfie_path:
-                  liveSelfie ||
+                  profile.liveSelfie ||
                   null
               },
               {
-                onConflict:
-                  "id"
+                onConflict: "id"
               }
             );
 
         if (profileError) {
-          console.error(
-            "Supabase profile save error:",
-            profileError
-          );
-
-          throw new Error(
-            "Your account was created, but we could not save your profile. Please try again."
-          );
+          throw profileError;
         }
-      }
 
-      localStorage.setItem(
-        "libdate_profile",
-        JSON.stringify(profile)
-      );
-
-      if (data.session) {
+        localStorage.setItem(
+          "libdate_profile",
+          JSON.stringify(profile)
+        );
 
         localStorage.setItem(
           "libdate_authenticated",
@@ -1035,7 +823,6 @@ function SignupFlow({
       onLogin();
 
     } catch (err) {
-
       console.error(
         "Supabase signup error:",
         err
@@ -1106,9 +893,9 @@ function SignupFlow({
   );
 }
 
-/* =========================
-   PERSONAL INFORMATION
-========================= */
+/* =========================================================
+   PERSONAL INFO
+========================================================= */
 
 function PersonalInfoStep({
   form,
@@ -1120,7 +907,6 @@ function PersonalInfoStep({
     <div className="signup-content">
 
       <div className="auth-heading">
-
         <p className="eyebrow">
           CREATE YOUR PROFILE
         </p>
@@ -1133,7 +919,6 @@ function PersonalInfoStep({
           We need a few basic details to create
           your LIBDate account.
         </p>
-
       </div>
 
       <div className="signup-form">
@@ -1146,7 +931,6 @@ function PersonalInfoStep({
             </label>
 
             <div className="input-wrap">
-
               <User size={18} />
 
               <input
@@ -1159,7 +943,6 @@ function PersonalInfoStep({
                 }
                 placeholder="First name"
               />
-
             </div>
           </div>
 
@@ -1169,7 +952,6 @@ function PersonalInfoStep({
             </label>
 
             <div className="input-wrap">
-
               <User size={18} />
 
               <input
@@ -1182,7 +964,6 @@ function PersonalInfoStep({
                 }
                 placeholder="Last name"
               />
-
             </div>
           </div>
 
@@ -1193,7 +974,6 @@ function PersonalInfoStep({
         </label>
 
         <div className="input-wrap">
-
           <CircleUserRound size={18} />
 
           <input
@@ -1206,7 +986,6 @@ function PersonalInfoStep({
             }
             placeholder="What should people see?"
           />
-
         </div>
 
         <label>
@@ -1214,7 +993,6 @@ function PersonalInfoStep({
         </label>
 
         <div className="input-wrap">
-
           <MapPinned size={18} />
 
           <input
@@ -1227,7 +1005,6 @@ function PersonalInfoStep({
             }
             placeholder="e.g. Sinkor, Monrovia"
           />
-
         </div>
 
         <label>
@@ -1235,7 +1012,6 @@ function PersonalInfoStep({
         </label>
 
         <div className="input-wrap">
-
           <CalendarDays size={18} />
 
           <input
@@ -1248,7 +1024,6 @@ function PersonalInfoStep({
               )
             }
           />
-
         </div>
 
         <p className="field-help">
@@ -1274,9 +1049,9 @@ function PersonalInfoStep({
   );
 }
 
-/* =========================
+/* =========================================================
    ACCOUNT SECURITY
-========================= */
+========================================================= */
 
 function AccountSecurityStep({
   form,
@@ -1317,7 +1092,6 @@ function AccountSecurityStep({
         </label>
 
         <div className="input-wrap">
-
           <Mail size={18} />
 
           <input
@@ -1331,7 +1105,6 @@ function AccountSecurityStep({
             }
             placeholder="you@example.com"
           />
-
         </div>
 
         <label>
@@ -1339,7 +1112,6 @@ function AccountSecurityStep({
         </label>
 
         <div className="input-wrap">
-
           <Lock size={18} />
 
           <input
@@ -1373,7 +1145,6 @@ function AccountSecurityStep({
               <Eye size={18} />
             )}
           </button>
-
         </div>
 
         <label>
@@ -1381,7 +1152,6 @@ function AccountSecurityStep({
         </label>
 
         <div className="input-wrap">
-
           <Lock size={18} />
 
           <input
@@ -1415,7 +1185,6 @@ function AccountSecurityStep({
               <Eye size={18} />
             )}
           </button>
-
         </div>
 
         {error && (
@@ -1436,9 +1205,9 @@ function AccountSecurityStep({
   );
 }
 
-/* =========================
-   PROFILE PHOTO
-========================= */
+/* =========================================================
+   PHOTO UPLOAD
+========================================================= */
 
 function PhotoUploadStep({
   form,
@@ -1561,9 +1330,9 @@ function PhotoUploadStep({
   );
 }
 
-/* =========================
-   LIVE CAMERA VERIFICATION
-========================= */
+/* =========================================================
+   LIVE VERIFICATION
+========================================================= */
 
 function LiveVerificationStep({
   profilePhoto,
@@ -1586,12 +1355,11 @@ function LiveVerificationStep({
 
   const stopCamera = () => {
     if (streamRef.current) {
-
       streamRef.current
         .getTracks()
-        .forEach((track) => {
-          track.stop();
-        });
+        .forEach((track) =>
+          track.stop()
+        );
 
       streamRef.current = null;
     }
@@ -1606,7 +1374,6 @@ function LiveVerificationStep({
     setCameraState("starting");
 
     try {
-
       if (
         !navigator.mediaDevices ||
         !navigator.mediaDevices.getUserMedia
@@ -1647,7 +1414,6 @@ function LiveVerificationStep({
 
       await new Promise(
         (resolve, reject) => {
-
           const timeout =
             setTimeout(() => {
               reject(
@@ -1676,7 +1442,6 @@ function LiveVerificationStep({
       setCameraState("ready");
 
     } catch (err) {
-
       console.error(
         "Camera error:",
         err
@@ -1690,51 +1455,41 @@ function LiveVerificationStep({
         err?.name ===
         "NotAllowedError"
       ) {
-
         setError(
           "Camera permission was denied. Please allow camera access and try again."
         );
-
       } else if (
         err?.name ===
         "NotFoundError"
       ) {
-
         setError(
           "No camera was found on this device."
         );
-
       } else if (
         err?.name ===
         "NotReadableError"
       ) {
-
         setError(
-          "Your camera is being used by another application. Close other apps using the camera and try again."
+          "Your camera is being used by another application."
         );
-
       } else {
-
         setError(
           err?.message ||
-          "Unable to start the camera. Please try again."
+          "Unable to start the camera."
         );
       }
     }
   };
 
   useEffect(() => {
-
     startCamera();
 
     return () => {
       stopCamera();
     };
-
   }, []);
 
   const takeSelfie = () => {
-
     const video =
       videoRef.current;
 
@@ -1744,11 +1499,9 @@ function LiveVerificationStep({
       !video.videoWidth ||
       !video.videoHeight
     ) {
-
       setError(
-        "Camera is still starting. Please wait a moment and try again."
+        "Camera is still starting. Please wait a moment."
       );
-
       return;
     }
 
@@ -1767,11 +1520,9 @@ function LiveVerificationStep({
       canvas.getContext("2d");
 
     if (!context) {
-
       setError(
         "Unable to capture the camera image."
       );
-
       return;
     }
 
@@ -1800,15 +1551,12 @@ function LiveVerificationStep({
 
     stopCamera();
 
-    setCameraState(
-      "captured"
-    );
+    setCameraState("captured");
 
     setError("");
   };
 
   const retake = async () => {
-
     setSelfie("");
     setError("");
 
@@ -1816,7 +1564,6 @@ function LiveVerificationStep({
   };
 
   const verify = async () => {
-
     if (!selfie) {
       setError(
         "Please take a live selfie first."
@@ -1829,7 +1576,10 @@ function LiveVerificationStep({
 
     await new Promise(
       (resolve) =>
-        setTimeout(resolve, 1500)
+        setTimeout(
+          resolve,
+          1000
+        )
     );
 
     setVerifying(false);
@@ -1852,8 +1602,7 @@ function LiveVerificationStep({
 
         <p>
           Take a live selfie. Make sure
-          your face is clearly visible and
-          look directly at the camera.
+          your face is clearly visible.
         </p>
 
       </div>
@@ -1917,22 +1666,17 @@ function LiveVerificationStep({
         {cameraState ===
           "starting" && (
           <div className="camera-message">
-
             <Camera size={32} />
-
             <span>
               Starting camera...
             </span>
-
           </div>
         )}
 
         {cameraState ===
           "error" && (
           <div className="camera-message">
-
             <Camera size={32} />
-
             <span>
               Camera unavailable
             </span>
@@ -1943,20 +1687,17 @@ function LiveVerificationStep({
             >
               Try again
             </button>
-
           </div>
         )}
 
         {cameraState ===
           "captured" && (
           <div className="camera-captured">
-
             <Check size={34} />
 
             <strong>
               Live selfie captured
             </strong>
-
           </div>
         )}
 
@@ -1968,8 +1709,7 @@ function LiveVerificationStep({
         </div>
       )}
 
-      {cameraState ===
-        "ready" && (
+      {cameraState === "ready" && (
         <button
           className="primary"
           onClick={takeSelfie}
@@ -1979,8 +1719,7 @@ function LiveVerificationStep({
         </button>
       )}
 
-      {cameraState ===
-        "captured" && (
+      {cameraState === "captured" && (
         <>
           <button
             className="secondary-auth"
@@ -2003,21 +1742,13 @@ function LiveVerificationStep({
         </>
       )}
 
-      <p className="verification-footnote">
-        Your live selfie should show your
-        actual face. The production version
-        will use secure liveness and
-        face-match verification before
-        approval.
-      </p>
-
     </div>
   );
 }
 
-/* =========================
-   BOTTOM NAVIGATION
-========================= */
+/* =========================================================
+   NAVIGATION
+========================================================= */
 
 function BottomNav({
   page,
@@ -2062,13 +1793,11 @@ function BottomNav({
               setPage(id)
             }
           >
-
             <Icon size={21} />
 
             <span>
               {label}
             </span>
-
           </button>
         )
       )}
@@ -2076,10 +1805,6 @@ function BottomNav({
     </nav>
   );
 }
-
-/* =========================
-   HEADER
-========================= */
 
 function Header({
   title,
@@ -2131,260 +1856,9 @@ function Header({
   );
 }
 
-/* =========================
-   STATUS / PROFILE VIEWER
-========================= */
-
-function StatusPage({
-  person,
-  setPage,
-  setSelected
-}) {
-  if (!person) {
-    return null;
-  }
-
-  const photos =
-    person.photos?.length
-      ? person.photos
-      : [person.image];
-
-  const statusImage =
-    photos[0] || person.image;
-
-  return (
-    <div
-      className="screen"
-      style={{
-        background: "#000",
-        minHeight: "100vh"
-      }}
-    >
-      <main
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          position: "relative",
-          background: "#000"
-        }}
-      >
-        <div
-          style={{
-            position: "relative",
-            height: "100vh",
-            minHeight: "620px",
-            overflow: "hidden",
-            background: "#111"
-          }}
-        >
-          <img
-            src={statusImage}
-            alt={`${person.name} status`}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              display: "block"
-            }}
-          />
-
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "linear-gradient(to bottom, rgba(0,0,0,.58), transparent 28%, transparent 58%, rgba(0,0,0,.72))"
-            }}
-          />
-
-          <button
-            type="button"
-            onClick={() =>
-              setPage("discover")
-            }
-            aria-label="Back to discover"
-            style={{
-              position: "absolute",
-              left: "16px",
-              top: "16px",
-              zIndex: 3,
-              width: "42px",
-              height: "42px",
-              border: 0,
-              borderRadius: "50%",
-              background:
-                "rgba(0,0,0,.42)",
-              color: "#fff",
-              fontSize: "26px",
-              lineHeight: 1,
-              cursor: "pointer"
-            }}
-          >
-            ‹
-          </button>
-
-          <div
-            style={{
-              position: "absolute",
-              left: "18px",
-              right: "18px",
-              top: "18px",
-              zIndex: 2,
-              paddingLeft: "52px",
-              paddingRight: "6px"
-            }}
-          >
-            <div
-              style={{
-                height: "3px",
-                width: "100%",
-                background:
-                  "rgba(255,255,255,.35)",
-                borderRadius: "999px",
-                overflow: "hidden"
-              }}
-            >
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  background: "#fff",
-                  borderRadius: "999px"
-                }}
-              />
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setSelected(person);
-              setPage("person");
-            }}
-            style={{
-              position: "absolute",
-              left: "18px",
-              right: "18px",
-              top: "38px",
-              zIndex: 3,
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              padding: 0,
-              border: 0,
-              background: "transparent",
-              color: "#fff",
-              textAlign: "left",
-              cursor: "pointer"
-            }}
-          >
-            <img
-              src={person.image}
-              alt={person.name}
-              style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "50%",
-                objectFit: "cover",
-                border: "2px solid #fff",
-                flexShrink: 0
-              }}
-            />
-
-            <div>
-              <strong
-                style={{
-                  display: "block",
-                  fontSize: "16px",
-                  lineHeight: 1.2
-                }}
-              >
-                {person.name}, {person.age}
-              </strong>
-
-              <span
-                style={{
-                  display: "block",
-                  fontSize: "12px",
-                  opacity: .86,
-                  marginTop: "3px"
-                }}
-              >
-                {person.city}
-              </span>
-            </div>
-          </button>
-
-          <div
-            style={{
-              position: "absolute",
-              left: "20px",
-              right: "20px",
-              bottom: "30px",
-              zIndex: 2,
-              color: "#fff"
-            }}
-          >
-            <span
-              style={{
-                display: "block",
-                fontSize: "11px",
-                textTransform: "uppercase",
-                letterSpacing: ".12em",
-                opacity: .78,
-                marginBottom: "8px"
-              }}
-            >
-              Recent status
-            </span>
-
-            <strong
-              style={{
-                display: "block",
-                fontSize: "21px",
-                lineHeight: 1.35,
-                textShadow:
-                  "0 2px 12px rgba(0,0,0,.4)"
-              }}
-            >
-              {person.status ||
-                "No status added yet."}
-            </strong>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelected(person);
-                setPage("person");
-              }}
-              style={{
-                marginTop: "16px",
-                padding: "10px 16px",
-                borderRadius: "999px",
-                border:
-                  "1px solid rgba(255,255,255,.55)",
-                background:
-                  "rgba(255,255,255,.14)",
-                color: "#fff",
-                fontWeight: 700,
-                cursor: "pointer",
-                backdropFilter:
-                  "blur(8px)"
-              }}
-            >
-              View {person.name}'s profile
-            </button>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-/* =========================
+/* =========================================================
    PERSON CARD
-========================= */
+========================================================= */
 
 function PersonCard({
   person,
@@ -2393,13 +1867,15 @@ function PersonCard({
   onConnect,
   onPass,
   onOpen,
-  onStatusOpen
+  onStatusOpen,
+  liking
 }) {
   return (
     <article
       className="person-card"
       onClick={onOpen}
     >
+
       <img
         src={person.image}
         alt={person.name}
@@ -2408,6 +1884,7 @@ function PersonCard({
       <div className="photo-gradient" />
 
       <div className="card-top">
+
         <span className="online">
           <span />
           Online
@@ -2420,22 +1897,7 @@ function PersonCard({
             e.stopPropagation();
             onStatusOpen();
           }}
-          aria-label={`View ${person.name}'s status and profile`}
-          style={{
-            width: "42px",
-            height: "42px",
-            padding: "2px",
-            borderRadius: "50%",
-            border: "2px solid #fff",
-            background:
-              "linear-gradient(135deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            boxShadow:
-              "0 2px 8px rgba(0,0,0,.22)"
-          }}
+          aria-label={`View ${person.name}'s status`}
         >
           <img
             src={
@@ -2443,16 +1905,9 @@ function PersonCard({
               person.image
             }
             alt=""
-            style={{
-              width: "100%",
-              height: "100%",
-              borderRadius: "50%",
-              objectFit: "cover",
-              border: "2px solid #fff",
-              display: "block"
-            }}
           />
         </button>
+
       </div>
 
       <div className="person-info">
@@ -2512,7 +1967,6 @@ function PersonCard({
               : ""
           }`}
           onClick={onPass}
-          aria-label={`Dislike ${person.name}`}
         >
           <X />
         </button>
@@ -2524,7 +1978,7 @@ function PersonCard({
               : ""
           }`}
           onClick={onConnect}
-          aria-label={`Like ${person.name}`}
+          disabled={liking}
         >
           <Heart
             fill={
@@ -2541,9 +1995,9 @@ function PersonCard({
   );
 }
 
-/* =========================
+/* =========================================================
    DISCOVER
-========================= */
+========================================================= */
 
 function Discover({
   setPage,
@@ -2568,6 +2022,9 @@ function Discover({
   const [profileError, setProfileError] =
     useState("");
 
+  const [likingId, setLikingId] =
+    useState("");
+
   const loadProfiles = async () => {
     try {
       setLoadingPeople(true);
@@ -2579,7 +2036,12 @@ function Discover({
         await supabase.auth.getUser();
 
       const currentUserId =
-        authData?.user?.id || "";
+        authData?.user?.id;
+
+      if (!currentUserId) {
+        setDbPeople([]);
+        return;
+      }
 
       const {
         data,
@@ -2587,17 +2049,19 @@ function Discover({
       } =
         await supabase
           .from("profiles")
-          .select(
-            `
-              id,
-              first_name,
-              last_name,
-              display_name,
-              location,
-              dob,
-              profile_photo_path,
-              created_at
-            `
+          .select(`
+            id,
+            first_name,
+            last_name,
+            display_name,
+            location,
+            dob,
+            profile_photo_path,
+            created_at
+          `)
+          .neq(
+            "id",
+            currentUserId
           )
           .order(
             "created_at",
@@ -2613,83 +2077,54 @@ function Discover({
         );
 
         setProfileError(
+          error.message ||
           "Unable to load registered users."
         );
 
         return;
       }
 
-      const mappedPeople =
-        (data || [])
-          .filter(
-            (profile) =>
-              profile.id !==
-              currentUserId
+      const mapped =
+        (data || []).map(
+          mapDatabaseProfile
+        );
+
+      setDbPeople(mapped);
+
+      const {
+        data: myLikes,
+        error: likesError
+      } =
+        await supabase
+          .from("likes")
+          .select(
+            "liked_user_id"
           )
-          .map((profile) => {
+          .eq(
+            "user_id",
+            currentUserId
+          );
 
-            const displayName =
-              profile.display_name ||
-              `${profile.first_name || ""} ${profile.last_name || ""}`
-                .trim() ||
-              "LIBDate User";
+      if (!likesError) {
+        const likeState = {};
 
-            const age =
-              calculateAge(
-                profile.dob
-              );
+        (myLikes || []).forEach(
+          (like) => {
+            likeState[
+              `db-${like.liked_user_id}`
+            ] = true;
+          }
+        );
 
-            const image =
-              profile.profile_photo_path ||
-              "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=85";
-
-            return {
-              id:
-                `db-${profile.id}`,
-
-              databaseId:
-                profile.id,
-
-              name:
-                displayName,
-
-              age:
-                age || 18,
-
-              city:
-                profile.location ||
-                "Liberia",
-
-              distance:
-                "Nearby",
-
-              image,
-
-              bio:
-                "New to LIBDate.",
-
-              interests: [],
-
-              intention:
-                "Dating",
-
-              compatibility:
-                80,
-
-              status:
-                "New to LIBDate ✨",
-
-              photos:
-                [image]
-            };
-          });
-
-      setDbPeople(
-        mappedPeople
-      );
+        setLikes(likeState);
+      } else {
+        console.error(
+          "Likes loading error:",
+          likesError
+        );
+      }
 
     } catch (err) {
-
       console.error(
         "Unexpected profile loading error:",
         err
@@ -2708,10 +2143,84 @@ function Discover({
     loadProfiles();
   }, []);
 
-  const allPeople = [
-    ...dbPeople,
-    ...people
-  ];
+  const handleLike = async (person) => {
+    if (!person.databaseId) {
+      notify(
+        "This profile is not available."
+      );
+      return;
+    }
+
+    if (likes[person.id]) {
+      notify(
+        `You already liked ${person.name} ❤️`
+      );
+      return;
+    }
+
+    try {
+      setLikingId(person.id);
+
+      const {
+        data,
+        error
+      } =
+        await supabase.rpc(
+          "like_user",
+          {
+            target_user_id:
+              person.databaseId
+          }
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      setLikes(
+        (current) => ({
+          ...current,
+          [person.id]: true
+        })
+      );
+
+      if (data?.matched) {
+        notify(
+          `It's a match with ${person.name}! 💙`
+        );
+      } else {
+        notify(
+          `You liked ${person.name} ❤️`
+        );
+      }
+
+    } catch (err) {
+      console.error(
+        "Like error:",
+        err
+      );
+
+      notify(
+        err?.message ||
+        "Unable to send the connection request."
+      );
+    } finally {
+      setLikingId("");
+    }
+  };
+
+  const handlePass = (person) => {
+    setPasses(
+      (current) => ({
+        ...current,
+        [person.id]: true
+      })
+    );
+
+    notify(
+      `You passed on ${person.name}`
+    );
+  };
 
   const normalizedSearch =
     searchTerm
@@ -2719,7 +2228,7 @@ function Discover({
       .toLowerCase();
 
   const visiblePeople =
-    allPeople.filter(
+    dbPeople.filter(
       (person) => {
 
         if (!normalizedSearch) {
@@ -2732,7 +2241,6 @@ function Discover({
             .includes(
               normalizedSearch
             ) ||
-
           person.city
             .toLowerCase()
             .includes(
@@ -2741,38 +2249,6 @@ function Discover({
         );
       }
     );
-
-  const handleLike = (
-    person
-  ) => {
-
-    setLikes(
-      (current) => ({
-        ...current,
-        [person.id]: true
-      })
-    );
-
-    notify(
-      `You liked ${person.name} ❤️`
-    );
-  };
-
-  const handlePass = (
-    person
-  ) => {
-
-    setPasses(
-      (current) => ({
-        ...current,
-        [person.id]: true
-      })
-    );
-
-    notify(
-      `You passed on ${person.name}`
-    );
-  };
 
   return (
     <div className="screen">
@@ -2796,11 +2272,9 @@ function Discover({
           </div>
 
           <button className="filter">
-
             <SlidersHorizontal
               size={18}
             />
-
           </button>
 
         </div>
@@ -2817,8 +2291,6 @@ function Discover({
           />
 
         </div>
-
-        {/* SEARCH */}
 
         <div
           className="search"
@@ -2849,12 +2321,8 @@ function Discover({
                 border: 0,
                 background:
                   "transparent",
-                cursor: "pointer",
-                padding: 0,
-                display: "flex",
-                alignItems: "center"
+                cursor: "pointer"
               }}
-              aria-label="Clear search"
             >
               <X size={17} />
             </button>
@@ -2865,12 +2333,9 @@ function Discover({
         {loadingPeople && (
           <p
             style={{
-              margin:
-                "14px 0",
-              color:
-                "#6b7280",
-              fontSize:
-                "13px"
+              margin: "14px 0",
+              color: "#6b7280",
+              fontSize: "13px"
             }}
           >
             Loading people...
@@ -2880,12 +2345,9 @@ function Discover({
         {profileError && (
           <p
             style={{
-              margin:
-                "14px 0",
-              color:
-                "#b91c1c",
-              fontSize:
-                "13px"
+              margin: "14px 0",
+              color: "#b91c1c",
+              fontSize: "13px"
             }}
           >
             {profileError}
@@ -2909,19 +2371,20 @@ function Discover({
                     person.id
                   ]
                 }
-
+                liking={
+                  likingId ===
+                  person.id
+                }
                 onConnect={() =>
                   handleLike(
                     person
                   )
                 }
-
                 onPass={() =>
                   handlePass(
                     person
                   )
                 }
-
                 onOpen={() => {
                   setSelected(
                     person
@@ -2931,7 +2394,6 @@ function Discover({
                     "person"
                   );
                 }}
-
                 onStatusOpen={() => {
                   setSelected(
                     person
@@ -2948,46 +2410,26 @@ function Discover({
         </div>
 
         {!loadingPeople &&
-          visiblePeople.length ===
-            0 && (
+          visiblePeople.length === 0 && (
             <div
               style={{
-                textAlign:
-                  "center",
-                padding:
-                  "40px 20px",
-                color:
-                  "#6b7280"
+                textAlign: "center",
+                padding: "40px 20px",
+                color: "#6b7280"
               }}
             >
-
               <Search
                 size={30}
                 style={{
-                  marginBottom:
-                    "10px"
+                  marginBottom: "10px"
                 }}
               />
 
               <p>
-                No people found.
+                No registered people found.
               </p>
-
             </div>
           )}
-
-        <div className="feed-end">
-
-          <Sparkles size={17} />
-
-          <span>
-
-            You've reached the end of
-            the people currently available.
-
-          </span>
-
-        </div>
 
       </main>
 
@@ -2995,23 +2437,295 @@ function Discover({
   );
 }
 
-/* =========================
+/* =========================================================
+   STATUS PAGE
+========================================================= */
+
+function StatusPage({
+  person,
+  setPage,
+  setSelected
+}) {
+  if (!person) return null;
+
+  const photos =
+    person.photos?.length
+      ? person.photos
+      : [person.image];
+
+  return (
+    <div
+      className="screen"
+      style={{
+        background: "#000",
+        minHeight: "100vh"
+      }}
+    >
+      <main
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          position: "relative",
+          background: "#000"
+        }}
+      >
+
+        <div
+          style={{
+            position: "relative",
+            height: "100vh",
+            minHeight: "620px",
+            overflow: "hidden"
+          }}
+        >
+
+          <img
+            src={photos[0]}
+            alt={person.name}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover"
+            }}
+          />
+
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(to bottom, rgba(0,0,0,.58), transparent 28%, transparent 58%, rgba(0,0,0,.72))"
+            }}
+          />
+
+          <button
+            type="button"
+            onClick={() =>
+              setPage("discover")
+            }
+            style={{
+              position: "absolute",
+              left: "16px",
+              top: "16px",
+              zIndex: 3,
+              width: "42px",
+              height: "42px",
+              border: 0,
+              borderRadius: "50%",
+              background:
+                "rgba(0,0,0,.42)",
+              color: "#fff",
+              fontSize: "26px",
+              cursor: "pointer"
+            }}
+          >
+            ‹
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSelected(person);
+              setPage("person");
+            }}
+            style={{
+              position: "absolute",
+              left: "18px",
+              right: "18px",
+              top: "38px",
+              zIndex: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: 0,
+              border: 0,
+              background: "transparent",
+              color: "#fff",
+              textAlign: "left"
+            }}
+          >
+
+            <img
+              src={person.image}
+              alt={person.name}
+              style={{
+                width: "44px",
+                height: "44px",
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: "2px solid #fff"
+              }}
+            />
+
+            <div>
+              <strong>
+                {person.name},{" "}
+                {person.age}
+              </strong>
+
+              <span
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  opacity: .86
+                }}
+              >
+                {person.city}
+              </span>
+            </div>
+
+          </button>
+
+          <div
+            style={{
+              position: "absolute",
+              left: "20px",
+              right: "20px",
+              bottom: "30px",
+              zIndex: 2,
+              color: "#fff"
+            }}
+          >
+
+            <span
+              style={{
+                display: "block",
+                fontSize: "11px",
+                textTransform: "uppercase",
+                letterSpacing: ".12em",
+                opacity: .78
+              }}
+            >
+              Recent status
+            </span>
+
+            <strong
+              style={{
+                display: "block",
+                fontSize: "21px",
+                marginTop: "8px"
+              }}
+            >
+              {person.status ||
+                "No status added yet."}
+            </strong>
+
+          </div>
+
+        </div>
+
+      </main>
+    </div>
+  );
+}
+
+/* =========================================================
    PERSON PAGE
-========================= */
+========================================================= */
 
 function PersonPage({
   person,
   setPage,
   notify
 }) {
-  if (!person) {
-    return null;
-  }
+  const [liked, setLiked] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  useEffect(() => {
+    const checkLike = async () => {
+      if (!person?.databaseId) return;
+
+      const {
+        data: userData
+      } =
+        await supabase.auth.getUser();
+
+      const userId =
+        userData?.user?.id;
+
+      if (!userId) return;
+
+      const {
+        data
+      } =
+        await supabase
+          .from("likes")
+          .select("id")
+          .eq(
+            "user_id",
+            userId
+          )
+          .eq(
+            "liked_user_id",
+            person.databaseId
+          )
+          .maybeSingle();
+
+      setLiked(!!data);
+    };
+
+    checkLike();
+  }, [person]);
+
+  if (!person) return null;
+
+  const sendConnection = async () => {
+    if (!person.databaseId) {
+      notify(
+        "This profile is unavailable."
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const {
+        data,
+        error
+      } =
+        await supabase.rpc(
+          "like_user",
+          {
+            target_user_id:
+              person.databaseId
+          }
+        );
+
+      if (error) throw error;
+
+      setLiked(true);
+
+      notify(
+        data?.matched
+          ? `It's a match with ${person.name}! 💙`
+          : `You liked ${person.name} ❤️`
+      );
+
+    } catch (err) {
+      console.error(
+        "Connection error:",
+        err
+      );
+
+      notify(
+        err?.message ||
+        "Unable to send connection."
+      );
+
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const photos =
-    person?.photos?.length
+    person.photos?.length
       ? person.photos
-      : [person?.image];
+      : [person.image];
 
   return (
     <div className="screen">
@@ -3031,8 +2745,7 @@ function PersonPage({
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            padding:
-              "8px 0 20px"
+            padding: "8px 0 20px"
           }}
         >
 
@@ -3041,7 +2754,6 @@ function PersonPage({
             onClick={() =>
               setPage("status")
             }
-            aria-label={`View ${person.name}'s status`}
             style={{
               width: "92px",
               height: "92px",
@@ -3049,11 +2761,7 @@ function PersonPage({
               border: 0,
               borderRadius: "50%",
               background:
-                "linear-gradient(135deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5)",
-              cursor:
-                "pointer",
-              boxSizing:
-                "border-box"
+                "linear-gradient(135deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5)"
             }}
           >
 
@@ -3064,24 +2772,18 @@ function PersonPage({
                 height: "100%",
                 borderRadius: "50%",
                 padding: "3px",
-                background: "#fff",
-                boxSizing:
-                  "border-box"
+                background: "#fff"
               }}
             >
 
               <img
-                src={
-                  person.photos?.[0] ||
-                  person.image
-                }
-                alt={`${person.name} status`}
+                src={person.image}
+                alt={person.name}
                 style={{
                   width: "100%",
                   height: "100%",
                   borderRadius: "50%",
-                  objectFit: "cover",
-                  display: "block"
+                  objectFit: "cover"
                 }}
               />
 
@@ -3095,7 +2797,6 @@ function PersonPage({
               textAlign: "center"
             }}
           >
-
             <strong
               style={{
                 display: "block",
@@ -3112,9 +2813,8 @@ function PersonPage({
                 fontSize: "13px"
               }}
             >
-              Tap the status circle to view recent status
+              {person.city}
             </span>
-
           </div>
 
         </div>
@@ -3128,9 +2828,7 @@ function PersonPage({
               {person.age}
             </h1>
 
-            <ShieldCheck
-              size={20}
-            />
+            <ShieldCheck size={20} />
 
           </div>
 
@@ -3138,8 +2836,7 @@ function PersonPage({
 
             <MapPin size={15} />
 
-            {person.city} ·{" "}
-            {person.distance}
+            {person.city}
 
           </div>
 
@@ -3167,13 +2864,11 @@ function PersonPage({
           <div className="chips large">
 
             {(person.interests || [])
-              .map(
-                (x) => (
-                  <span key={x}>
-                    {x}
-                  </span>
-                )
-              )}
+              .map((x) => (
+                <span key={x}>
+                  {x}
+                </span>
+              ))}
 
           </div>
 
@@ -3199,8 +2894,7 @@ function PersonPage({
               gridTemplateColumns:
                 "repeat(3, 1fr)",
               gap: "7px",
-              marginBottom:
-                "22px"
+              marginBottom: "22px"
             }}
           >
 
@@ -3209,15 +2903,12 @@ function PersonPage({
                 <img
                   key={`${photo}-${index}`}
                   src={photo}
-                  alt={`${person.name} photo ${index + 1}`}
+                  alt={`${person.name} photo`}
                   style={{
                     width: "100%",
                     aspectRatio: "1",
-                    objectFit:
-                      "cover",
-                    borderRadius:
-                      "10px",
-                    display: "block"
+                    objectFit: "cover",
+                    borderRadius: "10px"
                   }}
                 />
               )
@@ -3227,13 +2918,23 @@ function PersonPage({
 
           <button
             className="primary"
-            onClick={() =>
-              notify(
-                "Connection request sent 💙"
-              )
-            }
+            onClick={sendConnection}
+            disabled={loading}
           >
-            💙 Send Connection
+            <Heart
+              size={18}
+              fill={
+                liked
+                  ? "currentColor"
+                  : "none"
+              }
+            />
+
+            {loading
+              ? "Connecting..."
+              : liked
+                ? "Connected / Liked"
+                : "Send Connection"}
           </button>
 
         </div>
@@ -3244,17 +2945,229 @@ function PersonPage({
   );
 }
 
-/* =========================
+/* =========================================================
    CONNECTIONS
-========================= */
+========================================================= */
 
 function Connections({
-  setPage
+  setPage,
+  setSelected,
+  notify
 }) {
-  const connections = [
-    people[1],
-    people[2]
-  ];
+  const [connections, setConnections] =
+    useState([]);
+
+  const [requests, setRequests] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const loadConnections = async () => {
+    try {
+      setLoading(true);
+
+      const {
+        data: authData
+      } =
+        await supabase.auth.getUser();
+
+      const currentUserId =
+        authData?.user?.id;
+
+      if (!currentUserId) return;
+
+      const {
+        data: matchData,
+        error: matchError
+      } =
+        await supabase
+          .from("matches")
+          .select(
+            "id, user_one_id, user_two_id, created_at"
+          )
+          .or(
+            `user_one_id.eq.${currentUserId},user_two_id.eq.${currentUserId}`
+          )
+          .order(
+            "created_at",
+            {
+              ascending: false
+            }
+          );
+
+      if (matchError) {
+        throw matchError;
+      }
+
+      const normalized =
+        (matchData || [])
+          .map((match) =>
+            normalizeMatch(
+              match,
+              currentUserId
+            )
+          )
+          .filter(Boolean);
+
+      const otherIds =
+        normalized.map(
+          (x) => x.otherUserId
+        );
+
+      let profiles = [];
+
+      if (otherIds.length) {
+        const {
+          data: profileData,
+          error: profileError
+        } =
+          await supabase
+            .from("profiles")
+            .select(`
+              id,
+              first_name,
+              last_name,
+              display_name,
+              location,
+              dob,
+              profile_photo_path
+            `)
+            .in(
+              "id",
+              otherIds
+            );
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        profiles =
+          profileData || [];
+      }
+
+      const profileMap = {};
+
+      profiles.forEach(
+        (profile) => {
+          profileMap[
+            profile.id
+          ] = mapDatabaseProfile(
+            profile
+          );
+        }
+      );
+
+      setConnections(
+        normalized
+          .map((match) => ({
+            ...match,
+            person:
+              profileMap[
+                match.otherUserId
+              ]
+          }))
+          .filter(
+            (match) => match.person
+          )
+      );
+
+      /* -----------------------------------------
+         INCOMING LIKES
+      ----------------------------------------- */
+
+      const {
+        data: incoming,
+        error: incomingError
+      } =
+        await supabase
+          .from("likes")
+          .select(
+            "id, user_id, liked_user_id, created_at"
+          )
+          .eq(
+            "liked_user_id",
+            currentUserId
+          )
+          .order(
+            "created_at",
+            {
+              ascending: false
+            }
+          );
+
+      if (incomingError) {
+        console.error(
+          "Incoming likes error:",
+          incomingError
+        );
+        setRequests([]);
+        return;
+      }
+
+      const incomingIds =
+        (incoming || [])
+          .map(
+            (like) =>
+              like.user_id
+          )
+          .filter(
+            (id) =>
+              !otherIds.includes(id)
+          );
+
+      if (incomingIds.length) {
+        const {
+          data: incomingProfiles
+        } =
+          await supabase
+            .from("profiles")
+            .select(`
+              id,
+              first_name,
+              last_name,
+              display_name,
+              location,
+              dob,
+              profile_photo_path
+            `)
+            .in(
+              "id",
+              incomingIds
+            );
+
+        const requestProfiles =
+          incomingProfiles || [];
+
+        setRequests(
+          requestProfiles.map(
+            mapDatabaseProfile
+          )
+        );
+
+      } else {
+        setRequests([]);
+      }
+
+    } catch (err) {
+      console.error(
+        "Connections loading error:",
+        err
+      );
+
+      notify(
+        err?.message ||
+        "Unable to load connections."
+      );
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadConnections();
+  }, []);
 
   return (
     <div className="screen">
@@ -3301,6 +3214,17 @@ function Connections({
 
         </div>
 
+        {loading && (
+          <p
+            style={{
+              color: "#6b7280",
+              fontSize: "13px"
+            }}
+          >
+            Loading connections...
+          </p>
+        )}
+
         <div className="section-title">
 
           <h3>
@@ -3316,27 +3240,35 @@ function Connections({
         <div className="connection-list">
 
           {connections.map(
-            (p) => (
+            (match) => (
               <button
                 className="connection-row"
-                key={p.id}
-                onClick={() =>
+                key={match.id}
+                onClick={() => {
+                  setSelected(
+                    match.person
+                  );
+
                   setPage(
-                    "messages"
-                  )
-                }
+                    "chat"
+                  );
+                }}
               >
 
                 <img
-                  src={p.image}
-                  alt={p.name}
+                  src={
+                    match.person.image
+                  }
+                  alt={
+                    match.person.name
+                  }
                 />
 
                 <div>
 
                   <strong>
-                    {p.name},{" "}
-                    {p.age}
+                    {match.person.name},{" "}
+                    {match.person.age}
                   </strong>
 
                   <span>
@@ -3345,7 +3277,7 @@ function Connections({
                       size={13}
                     />
 
-                    {p.compatibility}%
+                    {match.person.compatibility}%
                     connection
 
                   </span>
@@ -3360,6 +3292,18 @@ function Connections({
 
         </div>
 
+        {!loading &&
+          connections.length === 0 && (
+            <p
+              style={{
+                color: "#6b7280",
+                fontSize: "13px"
+              }}
+            >
+              No mutual connections yet.
+            </p>
+          )}
+
         <div className="section-title">
 
           <h3>
@@ -3367,45 +3311,63 @@ function Connections({
           </h3>
 
           <span>
-            2
+            {requests.length}
           </span>
 
         </div>
 
-        <div className="request-box">
+        <div className="connection-list">
 
-          <div className="mini-avatars">
+          {requests.map(
+            (person) => (
+              <button
+                className="connection-row"
+                key={person.databaseId}
+                onClick={() => {
+                  setSelected(person);
+                  setPage("person");
+                }}
+              >
 
-            <img
-              src={people[0].image}
-              alt=""
-            />
+                <img
+                  src={person.image}
+                  alt={person.name}
+                />
 
-            <img
-              src={people[3].image}
-              alt=""
-            />
+                <div>
 
-          </div>
+                  <strong>
+                    {person.name},{" "}
+                    {person.age}
+                  </strong>
 
-          <div>
+                  <span>
+                    Wants to connect with you
+                  </span>
 
-            <strong>
-              2 people want to connect
-            </strong>
+                </div>
 
-            <span>
-              Review their profiles
-              and decide.
-            </span>
+                <ChevronLeft
+                  className="chevron-right"
+                />
 
-          </div>
-
-          <button className="small-btn">
-            View
-          </button>
+              </button>
+            )
+          )}
 
         </div>
+
+        {!loading &&
+          requests.length === 0 && (
+            <p
+              style={{
+                color: "#6b7280",
+                fontSize: "13px"
+              }}
+            >
+              No new requests.
+            </p>
+          )}
 
       </main>
 
@@ -3413,18 +3375,167 @@ function Connections({
   );
 }
 
-/* =========================
+/* =========================================================
    MESSAGES
-========================= */
+========================================================= */
 
 function Messages({
-  setPage
+  setPage,
+  setSelected
 }) {
-  const chats = [
-    people[1],
-    people[0],
-    people[2]
-  ];
+  const [chats, setChats] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const loadChats = async () => {
+    try {
+      setLoading(true);
+
+      const {
+        data: authData
+      } =
+        await supabase.auth.getUser();
+
+      const currentUserId =
+        authData?.user?.id;
+
+      if (!currentUserId) return;
+
+      const {
+        data: matches,
+        error
+      } =
+        await supabase
+          .from("matches")
+          .select(
+            "id, user_one_id, user_two_id, created_at"
+          )
+          .or(
+            `user_one_id.eq.${currentUserId},user_two_id.eq.${currentUserId}`
+          )
+          .order(
+            "created_at",
+            {
+              ascending: false
+            }
+          );
+
+      if (error) throw error;
+
+      const otherIds =
+        (matches || []).map(
+          (match) =>
+            match.user_one_id ===
+            currentUserId
+              ? match.user_two_id
+              : match.user_one_id
+        );
+
+      let profiles = [];
+
+      if (otherIds.length) {
+        const {
+          data
+        } =
+          await supabase
+            .from("profiles")
+            .select(`
+              id,
+              first_name,
+              last_name,
+              display_name,
+              location,
+              dob,
+              profile_photo_path
+            `)
+            .in(
+              "id",
+              otherIds
+            );
+
+        profiles = data || [];
+      }
+
+      const profileMap = {};
+
+      profiles.forEach(
+        (profile) => {
+          profileMap[
+            profile.id
+          ] =
+            mapDatabaseProfile(
+              profile
+            );
+        }
+      );
+
+      const results = [];
+
+      for (
+        const match of matches || []
+      ) {
+        const otherUserId =
+          match.user_one_id ===
+          currentUserId
+            ? match.user_two_id
+            : match.user_one_id;
+
+        const person =
+          profileMap[
+            otherUserId
+          ];
+
+        if (!person) continue;
+
+        const {
+          data: lastMessages
+        } =
+          await supabase
+            .from("messages")
+            .select(
+              "content, created_at, sender_id"
+            )
+            .eq(
+              "match_id",
+              match.id
+            )
+            .order(
+              "created_at",
+              {
+                ascending: false
+              }
+            )
+            .limit(1);
+
+        results.push({
+          matchId:
+            match.id,
+
+          person,
+
+          lastMessage:
+            lastMessages?.[0] ||
+            null
+        });
+      }
+
+      setChats(results);
+
+    } catch (err) {
+      console.error(
+        "Messages loading error:",
+        err
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadChats();
+  }, []);
 
   return (
     <div className="screen">
@@ -3455,30 +3566,45 @@ function Messages({
 
         </div>
 
+        {loading && (
+          <p
+            style={{
+              color: "#6b7280",
+              fontSize: "13px"
+            }}
+          >
+            Loading conversations...
+          </p>
+        )}
+
         <div className="chat-list">
 
           {chats.map(
-            (p, i) => (
+            (chat) => (
               <button
                 className="chat-row"
-                key={p.id}
-                onClick={() =>
+                key={chat.matchId}
+                onClick={() => {
+                  setSelected(
+                    chat.person
+                  );
+
                   setPage(
                     "chat"
-                  )
-                }
+                  );
+                }}
               >
 
                 <div className="avatar-wrap">
 
                   <img
-                    src={p.image}
-                    alt={p.name}
+                    src={
+                      chat.person.image
+                    }
+                    alt={
+                      chat.person.name
+                    }
                   />
-
-                  {i === 0 && (
-                    <span className="dot" />
-                  )}
 
                 </div>
 
@@ -3487,30 +3613,32 @@ function Messages({
                   <div>
 
                     <strong>
-                      {p.name}
+                      {chat.person.name}
                     </strong>
 
                     <time>
-                      {i === 0
-                        ? "2m"
-                        : "Yesterday"}
+                      {chat.lastMessage
+                        ? new Date(
+                            chat.lastMessage.created_at
+                          ).toLocaleTimeString(
+                            [],
+                            {
+                              hour: "numeric",
+                              minute: "2-digit"
+                            }
+                          )
+                        : ""}
                     </time>
 
                   </div>
 
                   <span>
-                    {i === 0
-                      ? "That sounds good 😊"
-                      : "You both chose to connect."}
+                    {chat.lastMessage
+                      ?.content ||
+                      "You both chose to connect."}
                   </span>
 
                 </div>
-
-                {i === 0 && (
-                  <b className="unread">
-                    1
-                  </b>
-                )}
 
               </button>
             )
@@ -3518,48 +3646,289 @@ function Messages({
 
         </div>
 
+        {!loading &&
+          chats.length === 0 && (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px 20px",
+                color: "#6b7280"
+              }}
+            >
+              <MessageCircle
+                size={32}
+              />
+
+              <p>
+                No conversations yet.
+              </p>
+            </div>
+          )}
+
       </main>
 
     </div>
   );
 }
 
-/* =========================
+/* =========================================================
    CHAT
-========================= */
+========================================================= */
 
 function Chat({
+  person,
   setPage
 }) {
   const [text, setText] =
     useState("");
 
   const [msgs, setMsgs] =
-    useState([
-      "Hey! 👋",
-      "Hi Sarah! Nice to connect with you.",
-      "What's your favorite Liberian food?"
-    ]);
+    useState([]);
 
-  const send = () => {
+  const [matchId, setMatchId] =
+    useState(null);
 
-    if (!text.trim()) return;
+  const [currentUserId, setCurrentUserId] =
+    useState(null);
 
-    setMsgs(
-      (m) => [
-        ...m,
-        text
-      ]
-    );
+  const [loading, setLoading] =
+    useState(true);
 
-    setText("");
+  const [sending, setSending] =
+    useState(false);
+
+  const bottomRef = useRef(null);
+
+  const loadChat = async () => {
+    try {
+      setLoading(true);
+
+      const {
+        data: authData
+      } =
+        await supabase.auth.getUser();
+
+      const currentUser =
+        authData?.user;
+
+      if (!currentUser || !person?.databaseId) {
+        return;
+      }
+
+      setCurrentUserId(
+        currentUser.id
+      );
+
+      const {
+        data: match,
+        error: matchError
+      } =
+        await supabase
+          .from("matches")
+          .select(
+            "id, user_one_id, user_two_id"
+          )
+          .or(
+            `and(user_one_id.eq.${currentUser.id},user_two_id.eq.${person.databaseId}),and(user_one_id.eq.${person.databaseId},user_two_id.eq.${currentUser.id})`
+          )
+          .maybeSingle();
+
+      if (matchError) {
+        throw matchError;
+      }
+
+      if (!match) {
+        throw new Error(
+          "This conversation is not available yet."
+        );
+      }
+
+      setMatchId(match.id);
+
+      const {
+        data: messages,
+        error: messageError
+      } =
+        await supabase
+          .from("messages")
+          .select(
+            "id, match_id, sender_id, content, created_at"
+          )
+          .eq(
+            "match_id",
+            match.id
+          )
+          .order(
+            "created_at",
+            {
+              ascending: true
+            }
+          );
+
+      if (messageError) {
+        throw messageError;
+      }
+
+      setMsgs(
+        messages || []
+      );
+
+    } catch (err) {
+      console.error(
+        "Chat loading error:",
+        err
+      );
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadChat();
+  }, [person]);
+
+  useEffect(() => {
+    if (!matchId) return;
+
+    const channel =
+      supabase
+        .channel(
+          `chat-${matchId}`
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter:
+              `match_id=eq.${matchId}`
+          },
+          (payload) => {
+            const newMessage =
+              payload.new;
+
+            setMsgs(
+              (current) => {
+                if (
+                  current.some(
+                    (message) =>
+                      message.id ===
+                      newMessage.id
+                  )
+                ) {
+                  return current;
+                }
+
+                return [
+                  ...current,
+                  newMessage
+                ];
+              }
+            );
+          }
+        )
+        .subscribe();
+
+    return () => {
+      supabase.removeChannel(
+        channel
+      );
+    };
+  }, [matchId]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth"
+    });
+  }, [msgs]);
+
+  const send = async () => {
+    const cleanText =
+      text.trim();
+
+    if (
+      !cleanText ||
+      !matchId ||
+      !currentUserId ||
+      sending
+    ) {
+      return;
+    }
+
+    try {
+      setSending(true);
+
+      const {
+        data,
+        error
+      } =
+        await supabase
+          .from("messages")
+          .insert({
+            match_id:
+              matchId,
+
+            sender_id:
+              currentUserId,
+
+            content:
+              cleanText
+          })
+          .select()
+          .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setMsgs(
+        (current) => {
+          if (
+            current.some(
+              (message) =>
+                message.id ===
+                data.id
+            )
+          ) {
+            return current;
+          }
+
+          return [
+            ...current,
+            data
+          ];
+        }
+      );
+
+      setText("");
+
+    } catch (err) {
+      console.error(
+        "Message sending error:",
+        err
+      );
+
+      alert(
+        err?.message ||
+        "Unable to send message."
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!person) {
+    return null;
+  }
 
   return (
     <div className="screen">
 
       <Header
-        title="Sarah K."
+        title={
+          person.name
+        }
         back
         onBack={() =>
           setPage(
@@ -3579,49 +3948,67 @@ function Chat({
         <div className="chat-profile">
 
           <img
-            src={people[0].image}
-            alt="Sarah K."
+            src={person.image}
+            alt={person.name}
           />
 
           <strong>
-            Sarah K.
+            {person.name}
           </strong>
 
           <span>
-            Sinkor, Monrovia
+            {person.city}
           </span>
 
           <b>
 
             <Sparkles size={13} />
 
-            92% connection
+            {person.compatibility}%
+            connection
 
           </b>
 
         </div>
 
-        <div className="messages">
+        {loading ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "30px",
+              color: "#6b7280"
+            }}
+          >
+            Loading messages...
+          </div>
+        ) : (
+          <div className="messages">
 
-          {msgs.map(
-            (m, i) => (
-              <div
-                className={
-                  "bubble " +
-                  (
-                    i % 2
-                      ? "mine"
-                      : "theirs"
-                  )
-                }
-                key={i}
-              >
-                {m}
-              </div>
-            )
-          )}
+            {msgs.map(
+              (message) => (
+                <div
+                  className={
+                    "bubble " +
+                    (
+                      message.sender_id ===
+                      currentUserId
+                        ? "mine"
+                        : "theirs"
+                    )
+                  }
+                  key={message.id}
+                >
+                  {message.content}
+                </div>
+              )
+            )}
 
-        </div>
+            <div
+              ref={bottomRef}
+            />
+
+          </div>
+        )}
 
         <div className="starter">
 
@@ -3631,11 +4018,8 @@ function Chat({
 
           <button
             onClick={() =>
-              setMsgs(
-                (m) => [
-                  ...m,
-                  "What's one place in Liberia you'd love to visit? 🇱🇷"
-                ]
+              setText(
+                "What's one place in Liberia you'd love to visit? 🇱🇷"
               )
             }
           >
@@ -3655,19 +4039,19 @@ function Chat({
               )
             }
             onKeyDown={(e) => {
-
               if (
-                e.key === "Enter"
+                e.key ===
+                "Enter"
               ) {
                 send();
               }
-
             }}
             placeholder="Write a message..."
           />
 
           <button
             onClick={send}
+            disabled={sending}
           >
             <Send size={18} />
           </button>
@@ -3680,9 +4064,9 @@ function Chat({
   );
 }
 
-/* =========================
+/* =========================================================
    PROFILE
-========================= */
+========================================================= */
 
 function Profile({
   userProfile,
@@ -3698,9 +4082,6 @@ function Profile({
 
   const [error, setError] =
     useState("");
-
-  const [photoFile, setPhotoFile] =
-    useState(null);
 
   const [form, setForm] =
     useState({
@@ -3753,8 +4134,9 @@ function Profile({
 
   const fullName =
     userProfile?.displayName ||
-    `${userProfile?.firstName || ""} ${userProfile?.lastName || ""}`
-      .trim() ||
+    `${userProfile?.firstName || ""} ${
+      userProfile?.lastName || ""
+    }`.trim() ||
     "Your Profile";
 
   const age =
@@ -3809,190 +4191,164 @@ function Profile({
         userProfile?.profilePhoto || ""
     });
 
-    setPhotoFile(null);
     setEditing(true);
   };
 
-  const cancelEdit = () => {
-    setError("");
-    setPhotoFile(null);
-    setEditing(false);
-  };
+  const handleProfilePhoto =
+    async (file) => {
+      if (!file) return;
 
-  const handleProfilePhoto = async (
-    file
-  ) => {
-    if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        setError(
+          "Please select an image file."
+        );
+        return;
+      }
 
-    if (!file.type.startsWith("image/")) {
-      setError(
-        "Please select an image file."
-      );
-      return;
-    }
+      if (
+        file.size >
+        10 * 1024 * 1024
+      ) {
+        setError(
+          "Please select an image smaller than 10MB."
+        );
+        return;
+      }
 
-    if (
-      file.size >
-      10 * 1024 * 1024
-    ) {
-      setError(
-        "Please select an image smaller than 10MB."
-      );
-      return;
-    }
+      try {
+        const dataUrl =
+          await fileToDataUrl(
+            file
+          );
 
-    try {
+        setForm(
+          (current) => ({
+            ...current,
+            profilePhoto:
+              dataUrl
+          })
+        );
+
+        setError("");
+
+      } catch {
+        setError(
+          "Unable to prepare the new profile photo."
+        );
+      }
+    };
+
+  const saveProfile =
+    async () => {
       setError("");
 
-      const dataUrl =
-        await fileToDataUrl(
-          file
+      if (!form.firstName.trim()) {
+        setError(
+          "First name is required."
         );
-
-      setPhotoFile(file);
-
-      setForm(
-        (current) => ({
-          ...current,
-          profilePhoto:
-            dataUrl
-        })
-      );
-
-    } catch (err) {
-      console.error(
-        "Profile photo error:",
-        err
-      );
-
-      setError(
-        "Unable to prepare the new profile photo."
-      );
-    }
-  };
-
-  const saveProfile = async () => {
-    setError("");
-
-    if (!form.firstName.trim()) {
-      setError(
-        "First name is required."
-      );
-      return;
-    }
-
-    if (!form.lastName.trim()) {
-      setError(
-        "Last name is required."
-      );
-      return;
-    }
-
-    if (!form.displayName.trim()) {
-      setError(
-        "Display name is required."
-      );
-      return;
-    }
-
-    if (!form.location.trim()) {
-      setError(
-        "Location is required."
-      );
-      return;
-    }
-
-    if (!form.dob) {
-      setError(
-        "Date of birth is required."
-      );
-      return;
-    }
-
-    const newAge =
-      calculateAge(
-        form.dob
-      );
-
-    if (newAge < 18) {
-      setError(
-        "You must be at least 18 years old."
-      );
-      return;
-    }
-
-    if (newAge > 100) {
-      setError(
-        "Please enter a valid date of birth."
-      );
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      const {
-        data: authData,
-        error: authError
-      } =
-        await supabase.auth.getUser();
-
-      if (authError) {
-        throw authError;
+        return;
       }
 
-      const userId =
-        authData?.user?.id ||
-        userProfile?.id;
-
-      if (!userId) {
-        throw new Error(
-          "Your account could not be identified. Please log in again."
+      if (!form.lastName.trim()) {
+        setError(
+          "Last name is required."
         );
+        return;
       }
 
-      const {
-        data: savedData,
-        error: saveError
-      } =
-        await supabase
-          .from("profiles")
-          .upsert(
-            {
-              id:
-                userId,
+      if (!form.displayName.trim()) {
+        setError(
+          "Display name is required."
+        );
+        return;
+      }
 
-              first_name:
-                form.firstName.trim(),
+      if (!form.location.trim()) {
+        setError(
+          "Location is required."
+        );
+        return;
+      }
 
-              last_name:
-                form.lastName.trim(),
+      if (!form.dob) {
+        setError(
+          "Date of birth is required."
+        );
+        return;
+      }
 
-              display_name:
-                form.displayName.trim(),
+      const newAge =
+        calculateAge(
+          form.dob
+        );
 
-              location:
-                form.location.trim(),
+      if (newAge < 18) {
+        setError(
+          "You must be at least 18 years old."
+        );
+        return;
+      }
 
-              dob:
-                form.dob ||
-                null,
+      try {
+        setSaving(true);
 
-              phone:
-                form.phone.trim() ||
-                null,
+        const {
+          data: authData,
+          error: authError
+        } =
+          await supabase.auth.getUser();
 
-              profile_photo_path:
-                form.profilePhoto ||
-                null
-            },
-            {
-              onConflict:
-                "id"
-            }
-          )
-          .select(
-            `
+        if (authError) {
+          throw authError;
+        }
+
+        const userId =
+          authData?.user?.id;
+
+        if (!userId) {
+          throw new Error(
+            "Your account could not be identified."
+          );
+        }
+
+        const {
+          data,
+          error: saveError
+        } =
+          await supabase
+            .from("profiles")
+            .upsert(
+              {
+                id: userId,
+
+                first_name:
+                  form.firstName.trim(),
+
+                last_name:
+                  form.lastName.trim(),
+
+                display_name:
+                  form.displayName.trim(),
+
+                location:
+                  form.location.trim(),
+
+                dob:
+                  form.dob,
+
+                phone:
+                  form.phone.trim() ||
+                  null,
+
+                profile_photo_path:
+                  form.profilePhoto ||
+                  null
+              },
+              {
+                onConflict: "id"
+              }
+            )
+            .select(`
               id,
               first_name,
               last_name,
@@ -4003,106 +4359,89 @@ function Profile({
               profile_photo_path,
               live_selfie_path,
               created_at
-            `
-          )
-          .single();
+            `)
+            .single();
 
-      if (saveError) {
-        console.error(
-          "Supabase profile update error:",
-          saveError
+        if (saveError) {
+          throw saveError;
+        }
+
+        const updatedProfile = {
+          id: userId,
+
+          firstName:
+            data.first_name,
+
+          lastName:
+            data.last_name,
+
+          displayName:
+            data.display_name,
+
+          location:
+            data.location,
+
+          dob:
+            data.dob,
+
+          age:
+            calculateAge(
+              data.dob
+            ),
+
+          phone:
+            data.phone || "",
+
+          email:
+            userProfile?.email ||
+            authData.user.email ||
+            "",
+
+          profilePhoto:
+            data.profile_photo_path ||
+            "",
+
+          liveSelfie:
+            data.live_selfie_path ||
+            userProfile?.liveSelfie ||
+            "",
+
+          createdAt:
+            data.created_at
+        };
+
+        setUserProfile(
+          updatedProfile
         );
 
-        throw saveError;
+        localStorage.setItem(
+          "libdate_profile",
+          JSON.stringify(
+            updatedProfile
+          )
+        );
+
+        setEditing(false);
+
+        notify(
+          "Profile updated successfully ✓"
+        );
+
+      } catch (err) {
+        console.error(
+          "Profile save error:",
+          err
+        );
+
+        setError(
+          err?.message ||
+          "Unable to save your profile."
+        );
+
+      } finally {
+        setSaving(false);
       }
-
-      const updatedProfile = {
-        id:
-          userId,
-
-        firstName:
-          savedData?.first_name ||
-          form.firstName.trim(),
-
-        lastName:
-          savedData?.last_name ||
-          form.lastName.trim(),
-
-        displayName:
-          savedData?.display_name ||
-          form.displayName.trim(),
-
-        location:
-          savedData?.location ||
-          form.location.trim(),
-
-        dob:
-          savedData?.dob ||
-          form.dob,
-
-        age:
-          calculateAge(
-            savedData?.dob ||
-            form.dob
-          ),
-
-        phone:
-          savedData?.phone ||
-          form.phone.trim(),
-
-        email:
-          userProfile?.email ||
-          authData?.user?.email ||
-          "",
-
-        profilePhoto:
-          savedData?.profile_photo_path ||
-          form.profilePhoto ||
-          "",
-
-        liveSelfie:
-          userProfile?.liveSelfie ||
-          savedData?.live_selfie_path ||
-          "",
-
-        createdAt:
-          savedData?.created_at ||
-          userProfile?.createdAt ||
-          new Date().toISOString()
-      };
-
-      setUserProfile(
-        updatedProfile
-      );
-
-      localStorage.setItem(
-        "libdate_profile",
-        JSON.stringify(
-          updatedProfile
-        )
-      );
-
-      setEditing(false);
-      setPhotoFile(null);
-
-      notify(
-        "Profile updated successfully ✓"
-      );
-
-    } catch (err) {
-      console.error(
-        "Profile save error:",
-        err
-      );
-
-      setError(
-        err?.message ||
-        "Unable to save your profile. Please try again."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+    };
 
   if (editing) {
     return (
@@ -4111,7 +4450,9 @@ function Profile({
         <Header
           title="Edit Profile"
           back
-          onBack={cancelEdit}
+          onBack={() =>
+            setEditing(false)
+          }
         />
 
         <main className="content profile-page">
@@ -4133,19 +4474,14 @@ function Profile({
               <img
                 src={
                   form.profilePhoto ||
-                  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=85"
+                  profileImage
                 }
-                alt="Profile preview"
+                alt="Profile"
                 style={{
                   width: "120px",
                   height: "120px",
                   borderRadius: "50%",
-                  objectFit: "cover",
-                  display: "block",
-                  border:
-                    "4px solid #fff",
-                  boxShadow:
-                    "0 4px 18px rgba(0,0,0,.12)"
+                  objectFit: "cover"
                 }}
               />
 
@@ -4154,8 +4490,7 @@ function Profile({
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer"
+                  justifyContent: "center"
                 }}
               >
 
@@ -4188,11 +4523,13 @@ function Profile({
             <div className="two-inputs">
 
               <div>
+
                 <label>
                   First name
                 </label>
 
                 <div className="input-wrap">
+
                   <User size={18} />
 
                   <input
@@ -4206,15 +4543,19 @@ function Profile({
                       )
                     }
                   />
+
                 </div>
+
               </div>
 
               <div>
+
                 <label>
                   Last name
                 </label>
 
                 <div className="input-wrap">
+
                   <User size={18} />
 
                   <input
@@ -4228,7 +4569,9 @@ function Profile({
                       )
                     }
                   />
+
                 </div>
+
               </div>
 
             </div>
@@ -4253,7 +4596,6 @@ function Profile({
                     e.target.value
                   )
                 }
-                placeholder="What people see"
               />
 
             </div>
@@ -4278,7 +4620,6 @@ function Profile({
                     e.target.value
                   )
                 }
-                placeholder="e.g. Sinkor, Monrovia"
               />
 
             </div>
@@ -4329,39 +4670,9 @@ function Profile({
                     e.target.value
                   )
                 }
-                placeholder="Phone number"
               />
 
             </div>
-
-            <label>
-              Email address
-            </label>
-
-            <div className="input-wrap">
-
-              <Mail size={18} />
-
-              <input
-                type="email"
-                value={
-                  userProfile?.email ||
-                  ""
-                }
-                readOnly
-                style={{
-                  opacity: .65,
-                  cursor:
-                    "not-allowed"
-                }}
-              />
-
-            </div>
-
-            <p className="field-help">
-              Your email is managed by your
-              LIBDate login account.
-            </p>
 
             {error && (
               <div className="form-error">
@@ -4383,8 +4694,9 @@ function Profile({
 
             <button
               className="secondary-auth"
-              onClick={cancelEdit}
-              disabled={saving}
+              onClick={() =>
+                setEditing(false)
+              }
             >
               Cancel
             </button>
@@ -4416,7 +4728,6 @@ function Profile({
           <button
             className="edit-photo"
             onClick={openEdit}
-            aria-label="Edit profile photo"
           >
             <Camera size={16} />
           </button>
@@ -4435,9 +4746,7 @@ function Profile({
               </>
             )}
 
-            <ShieldCheck
-              size={18}
-            />
+            <ShieldCheck size={18} />
 
           </h2>
 
@@ -4474,7 +4783,9 @@ function Profile({
                     "5px"
                 }}
               />
+
               {userProfile.email}
+
             </div>
           )}
 
@@ -4485,7 +4796,6 @@ function Profile({
           <button
             onClick={openEdit}
           >
-
             <CircleUserRound
               size={19}
             />
@@ -4497,7 +4807,6 @@ function Profile({
             <ChevronLeft
               className="chevron-right"
             />
-
           </button>
 
           <button
@@ -4507,7 +4816,6 @@ function Profile({
               )
             }
           >
-
             <Heart size={19} />
 
             <span>
@@ -4517,7 +4825,6 @@ function Profile({
             <ChevronLeft
               className="chevron-right"
             />
-
           </button>
 
           <button
@@ -4527,7 +4834,6 @@ function Profile({
               )
             }
           >
-
             <Lock size={19} />
 
             <span>
@@ -4537,7 +4843,6 @@ function Profile({
             <ChevronLeft
               className="chevron-right"
             />
-
           </button>
 
           <button
@@ -4547,7 +4852,6 @@ function Profile({
               )
             }
           >
-
             <Globe2 size={19} />
 
             <span>
@@ -4557,7 +4861,6 @@ function Profile({
             <ChevronLeft
               className="chevron-right"
             />
-
           </button>
 
         </div>
@@ -4588,9 +4891,9 @@ function Profile({
   );
 }
 
-/* =========================
+/* =========================================================
    TOAST
-========================= */
+========================================================= */
 
 function Toast({
   message
@@ -4606,24 +4909,11 @@ function Toast({
   ) : null;
 }
 
-/* =========================
+/* =========================================================
    MAIN APP
-========================= */
+========================================================= */
 
 function App() {
-
-  /*
-   * We no longer trust only:
-   *
-   * localStorage.getItem(
-   *   "libdate_authenticated"
-   * )
-   *
-   * because that can say "true" even
-   * after the real Supabase session
-   * has disappeared.
-   */
-
   const [authChecking, setAuthChecking] =
     useState(true);
 
@@ -4637,15 +4927,12 @@ function App() {
     useState("discover");
 
   const [selected, setSelected] =
-    useState(people[0]);
+    useState(null);
 
   const [toast, setToast] =
     useState("");
 
-  const notify = (
-    message
-  ) => {
-
+  const notify = (message) => {
     setToast(message);
 
     setTimeout(() => {
@@ -4653,24 +4940,12 @@ function App() {
     }, 2200);
   };
 
-  /*
-   * Build the application profile
-   * from the current Supabase user
-   * and the profiles table.
-   */
-
   const buildCurrentProfile =
     async (user) => {
-
-      if (!user) {
-        return null;
-      }
+      if (!user) return null;
 
       const metadata =
         user.user_metadata || {};
-
-      let databaseProfile =
-        null;
 
       const {
         data,
@@ -4678,20 +4953,18 @@ function App() {
       } =
         await supabase
           .from("profiles")
-          .select(
-            `
-              id,
-              first_name,
-              last_name,
-              display_name,
-              location,
-              dob,
-              phone,
-              profile_photo_path,
-              live_selfie_path,
-              created_at
-            `
-          )
+          .select(`
+            id,
+            first_name,
+            last_name,
+            display_name,
+            location,
+            dob,
+            phone,
+            profile_photo_path,
+            live_selfie_path,
+            created_at
+          `)
           .eq(
             "id",
             user.id
@@ -4703,121 +4976,75 @@ function App() {
           "Unable to load current profile:",
           error
         );
-      } else {
-        databaseProfile =
-          data;
       }
 
-      /*
-       * If the profile row does not exist
-       * yet, use Auth metadata/local data.
-       */
-
-      let localProfile = null;
-
-      const localProfileText =
-        localStorage.getItem(
-          "libdate_profile"
-        );
-
-      if (localProfileText) {
-        try {
-          localProfile =
-            JSON.parse(
-              localProfileText
-            );
-        } catch {
-          localProfile = null;
-        }
-      }
+      const databaseProfile =
+        data || null;
 
       const profile = {
-        id:
-          user.id,
+        id: user.id,
 
         firstName:
           databaseProfile?.first_name ||
-          localProfile?.firstName ||
           metadata.first_name ||
           "",
 
         lastName:
           databaseProfile?.last_name ||
-          localProfile?.lastName ||
           metadata.last_name ||
           "",
 
         displayName:
           databaseProfile?.display_name ||
-          localProfile?.displayName ||
           metadata.display_name ||
           "",
 
         location:
           databaseProfile?.location ||
-          localProfile?.location ||
           metadata.location ||
           "",
 
         dob:
           databaseProfile?.dob ||
-          localProfile?.dob ||
           metadata.dob ||
           "",
 
         age:
           calculateAge(
             databaseProfile?.dob ||
-            localProfile?.dob ||
             metadata.dob ||
             ""
           ),
 
         phone:
           databaseProfile?.phone ||
-          localProfile?.phone ||
           "",
 
         email:
-          user.email ||
-          localProfile?.email ||
-          "",
+          user.email || "",
 
         profilePhoto:
           databaseProfile?.profile_photo_path ||
-          localProfile?.profilePhoto ||
           "",
 
         liveSelfie:
           databaseProfile?.live_selfie_path ||
-          localProfile?.liveSelfie ||
           "",
 
         createdAt:
           databaseProfile?.created_at ||
-          localProfile?.createdAt ||
           new Date().toISOString()
       };
 
-      /*
-       * If there is no profile row yet,
-       * create it after authentication.
-       *
-       * This fixes users who signed up while
-       * email confirmation was enabled.
-       */
-
       if (!databaseProfile) {
-
         const {
-          error: createProfileError
+          error: createError
         } =
           await supabase
             .from("profiles")
             .upsert(
               {
-                id:
-                  user.id,
+                id: user.id,
 
                 first_name:
                   profile.firstName,
@@ -4848,15 +5075,14 @@ function App() {
                   null
               },
               {
-                onConflict:
-                  "id"
+                onConflict: "id"
               }
             );
 
-        if (createProfileError) {
+        if (createError) {
           console.error(
-            "Unable to create missing profile row:",
-            createProfileError
+            "Profile creation error:",
+            createError
           );
         }
       }
@@ -4869,49 +5095,26 @@ function App() {
       return profile;
     };
 
-  /*
-   * Initial authentication check.
-   *
-   * Supabase itself determines whether
-   * the user is actually logged in.
-   */
-
   useEffect(() => {
-
     let mounted = true;
 
     const initializeAuth =
       async () => {
-
         try {
-
           const {
             data,
             error
           } =
             await supabase.auth.getUser();
 
-          if (!mounted) {
-            return;
-          }
+          if (!mounted) return;
 
           if (
             error ||
             !data?.user
           ) {
-
-            setAuthenticated(
-              false
-            );
-
-            setUserProfile(
-              null
-            );
-
-            localStorage.removeItem(
-              "libdate_authenticated"
-            );
-
+            setAuthenticated(false);
+            setUserProfile(null);
             return;
           }
 
@@ -4920,47 +5123,23 @@ function App() {
               data.user
             );
 
-          if (!mounted) {
-            return;
-          }
+          if (!mounted) return;
 
-          setUserProfile(
-            profile
-          );
-
-          setAuthenticated(
-            true
-          );
-
-          localStorage.setItem(
-            "libdate_authenticated",
-            "true"
-          );
+          setUserProfile(profile);
+          setAuthenticated(true);
 
         } catch (err) {
-
           console.error(
             "Authentication initialization error:",
             err
           );
 
           if (mounted) {
-
-            setAuthenticated(
-              false
-            );
-
-            setUserProfile(
-              null
-            );
-
-            localStorage.removeItem(
-              "libdate_authenticated"
-            );
+            setAuthenticated(false);
+            setUserProfile(null);
           }
 
         } finally {
-
           if (mounted) {
             setAuthChecking(false);
           }
@@ -4968,11 +5147,6 @@ function App() {
       };
 
     initializeAuth();
-
-    /*
-     * Keep React synchronized with
-     * Supabase authentication changes.
-     */
 
     const {
       data: authListener
@@ -4982,121 +5156,54 @@ function App() {
           event,
           session
         ) => {
-
-          if (!mounted) {
-            return;
-          }
+          if (!mounted) return;
 
           if (
             event ===
             "SIGNED_OUT"
           ) {
-
-            setAuthenticated(
-              false
-            );
-
-            setUserProfile(
-              null
-            );
-
-            setPage(
-              "discover"
-            );
-
-            localStorage.removeItem(
-              "libdate_authenticated"
-            );
-
-            localStorage.removeItem(
-              "libdate_profile"
-            );
-
+            setAuthenticated(false);
+            setUserProfile(null);
+            setPage("discover");
+            setSelected(null);
             return;
           }
 
-          if (
-            session?.user
-          ) {
-
-            /*
-             * Don't run a heavy profile query
-             * for every token refresh.
-             */
+          if (session?.user) {
+            setAuthenticated(true);
 
             if (
-              event ===
-              "SIGNED_IN" ||
-              event ===
-              "INITIAL_SESSION" ||
-              event ===
-              "USER_UPDATED"
+              event === "SIGNED_IN" ||
+              event === "INITIAL_SESSION" ||
+              event === "USER_UPDATED"
             ) {
-
               const profile =
                 await buildCurrentProfile(
                   session.user
                 );
 
-              if (!mounted) {
-                return;
-              }
+              if (!mounted) return;
 
               setUserProfile(
                 profile
               );
             }
-
-            setAuthenticated(
-              true
-            );
-
-            localStorage.setItem(
-              "libdate_authenticated",
-              "true"
-            );
           }
         }
       );
 
     return () => {
-
       mounted = false;
 
       authListener?.subscription?.unsubscribe();
-
     };
-
   }, []);
-
-  /*
-   * Called after successful login/signup.
-   */
 
   const handleAuthenticated =
     (profile) => {
-
-      if (profile) {
-
-        setUserProfile(
-          profile
-        );
-
-        localStorage.setItem(
-          "libdate_profile",
-          JSON.stringify(
-            profile
-          )
-        );
-      }
-
-      setAuthenticated(
-        true
-      );
-
-      setPage(
-        "discover"
-      );
+      setUserProfile(profile);
+      setAuthenticated(true);
+      setPage("discover");
 
       localStorage.setItem(
         "libdate_authenticated",
@@ -5104,15 +5211,9 @@ function App() {
       );
     };
 
-  /*
-   * REAL LOGOUT
-   */
-
   const handleLogout =
     async () => {
-
       try {
-
         const {
           error
         } =
@@ -5122,46 +5223,15 @@ function App() {
           throw error;
         }
 
-        setAuthenticated(
-          false
-        );
-
-        setUserProfile(
-          null
-        );
-
-        setPage(
-          "discover"
-        );
-
-        localStorage.removeItem(
-          "libdate_authenticated"
-        );
-
-        localStorage.removeItem(
-          "libdate_profile"
-        );
-
       } catch (err) {
-
         console.error(
           "Logout error:",
           err
         );
-
-        /*
-         * Even if Supabase logout has
-         * a temporary issue, don't keep
-         * the user inside the app.
-         */
-
-        setAuthenticated(
-          false
-        );
-
-        setUserProfile(
-          null
-        );
+      } finally {
+        setAuthenticated(false);
+        setUserProfile(null);
+        setSelected(null);
 
         localStorage.removeItem(
           "libdate_authenticated"
@@ -5173,14 +5243,7 @@ function App() {
       }
     };
 
-  /*
-   * Don't show the app or login screen
-   * until Supabase has checked the real
-   * authentication state.
-   */
-
   if (authChecking) {
-
     return (
       <div
         className="auth-screen"
@@ -5215,7 +5278,6 @@ function App() {
   }
 
   if (!authenticated) {
-
     return (
       <AuthScreen
         onAuthenticated={
@@ -5247,13 +5309,17 @@ function App() {
     ) : page === "connections" ? (
       <Connections
         setPage={setPage}
+        setSelected={setSelected}
+        notify={notify}
       />
     ) : page === "messages" ? (
       <Messages
         setPage={setPage}
+        setSelected={setSelected}
       />
     ) : page === "chat" ? (
       <Chat
+        person={selected}
         setPage={setPage}
       />
     ) : (
@@ -5297,9 +5363,9 @@ function App() {
   );
 }
 
-/* =========================
+/* =========================================================
    START REACT
-========================= */
+========================================================= */
 
 createRoot(
   document.getElementById("root")

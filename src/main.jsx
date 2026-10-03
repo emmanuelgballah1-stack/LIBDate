@@ -149,6 +149,10 @@ function calculateAge(dateString) {
   const today = new Date();
   const birthDate = new Date(dateString);
 
+  if (Number.isNaN(birthDate.getTime())) {
+    return 0;
+  }
+
   let age =
     today.getFullYear() -
     birthDate.getFullYear();
@@ -300,13 +304,8 @@ function LoginForm({ onLogin, onSignUp }) {
         throw authError;
       }
 
-      /* =========================
-         NEW:
-         Get the authenticated user.
-      ========================= */
-
       const currentUser =
-        data.user;
+        data?.user;
 
       if (!currentUser) {
         throw new Error(
@@ -317,33 +316,27 @@ function LoginForm({ onLogin, onSignUp }) {
       const metadata =
         currentUser.user_metadata || {};
 
-      const savedProfile =
+      let savedProfile = null;
+
+      const savedProfileText =
         localStorage.getItem(
           "libdate_profile"
         );
 
-      let profile = null;
-
-      /* =========================
-         NEW:
-         Restore saved local profile
-         when available.
-      ========================= */
-
-      if (savedProfile) {
+      if (savedProfileText) {
         try {
-          profile =
-            JSON.parse(savedProfile);
+          savedProfile =
+            JSON.parse(
+              savedProfileText
+            );
         } catch {
-          profile = null;
+          savedProfile = null;
         }
       }
 
-      if (
-        profile?.email
-      ) {
+      if (savedProfile?.email) {
         const savedEmail =
-          (profile.email || "")
+          (savedProfile.email || "")
             .replace(/\\/g, "")
             .trim()
             .toLowerCase();
@@ -352,89 +345,143 @@ function LoginForm({ onLogin, onSignUp }) {
           savedEmail &&
           savedEmail !== normalizedEmail
         ) {
-          setError(
-            "The saved profile does not match this email address."
-          );
-          return;
+          savedProfile = null;
         }
       }
 
-      /* =========================
-         NEW:
-         Build profile from either
-         localStorage or Supabase metadata.
-      ========================= */
+      /*
+       * First try to load the real profile
+       * from Supabase.
+       *
+       * This is important because a user
+       * may log in from another computer
+       * or browser.
+       */
 
-      profile = {
+      let databaseProfile = null;
+
+      const {
+        data: profileData,
+        error: profileLoadError
+      } =
+        await supabase
+          .from("profiles")
+          .select(
+            `
+              id,
+              first_name,
+              last_name,
+              display_name,
+              location,
+              dob,
+              phone,
+              profile_photo_path,
+              live_selfie_path,
+              created_at
+            `
+          )
+          .eq(
+            "id",
+            currentUser.id
+          )
+          .maybeSingle();
+
+      if (
+        profileLoadError
+      ) {
+        console.error(
+          "Supabase profile load during login:",
+          profileLoadError
+        );
+      } else {
+        databaseProfile =
+          profileData;
+      }
+
+      const profile = {
         id:
           currentUser.id,
 
         firstName:
-          profile?.firstName ||
+          databaseProfile?.first_name ||
+          savedProfile?.firstName ||
           metadata.first_name ||
           "",
 
         lastName:
-          profile?.lastName ||
+          databaseProfile?.last_name ||
+          savedProfile?.lastName ||
           metadata.last_name ||
           "",
 
         displayName:
-          profile?.displayName ||
+          databaseProfile?.display_name ||
+          savedProfile?.displayName ||
           metadata.display_name ||
           "",
 
         location:
-          profile?.location ||
+          databaseProfile?.location ||
+          savedProfile?.location ||
           metadata.location ||
           "",
 
         dob:
-          profile?.dob ||
+          databaseProfile?.dob ||
+          savedProfile?.dob ||
           metadata.dob ||
           "",
 
         age:
-          profile?.age ||
           calculateAge(
-            profile?.dob ||
+            databaseProfile?.dob ||
+            savedProfile?.dob ||
             metadata.dob ||
             ""
           ),
+
+        phone:
+          databaseProfile?.phone ||
+          savedProfile?.phone ||
+          "",
 
         email:
           currentUser.email ||
           normalizedEmail,
 
         profilePhoto:
-          profile?.profilePhoto ||
+          databaseProfile?.profile_photo_path ||
+          savedProfile?.profilePhoto ||
           "",
 
         liveSelfie:
-          profile?.liveSelfie ||
+          databaseProfile?.live_selfie_path ||
+          savedProfile?.liveSelfie ||
           "",
 
         createdAt:
-          profile?.createdAt ||
+          databaseProfile?.created_at ||
+          savedProfile?.createdAt ||
           new Date().toISOString()
       };
 
-      /* =========================
-         NEW:
-         SAVE PROFILE TO SUPABASE
-         
-         This is the important fix.
-         It runs AFTER login, when the
-         user definitely has an active
-         authenticated session.
-      ========================= */
+      /*
+       * Keep the profile row synchronized.
+       *
+       * No "age" or "email" is sent because
+       * those columns do not exist in your
+       * profiles table.
+       */
 
-      const { error: profileError } =
+      const {
+        error: profileSaveError
+      } =
         await supabase
           .from("profiles")
           .upsert(
             {
-              id: currentUser.id,
+              id:
+                currentUser.id,
 
               first_name:
                 profile.firstName,
@@ -449,31 +496,38 @@ function LoginForm({ onLogin, onSignUp }) {
                 profile.location,
 
               dob:
-                profile.dob || null,
+                profile.dob ||
+                null,
+
+              phone:
+                profile.phone ||
+                null,
 
               profile_photo_path:
                 profile.profilePhoto ||
+                null,
+
+              live_selfie_path:
+                profile.liveSelfie ||
                 null
             },
             {
-              onConflict: "id"
+              onConflict:
+                "id"
             }
           );
 
-      if (profileError) {
+      if (profileSaveError) {
         console.error(
-          "Supabase profile save error during login:",
-          profileError
+          "Supabase profile sync error during login:",
+          profileSaveError
         );
 
-        throw new Error(
-          "You logged in successfully, but your profile could not be saved. Please try again."
-        );
+        /*
+         * Do not prevent login just because
+         * profile synchronization failed.
+         */
       }
-
-      /* =========================
-         SAVE UPDATED PROFILE LOCALLY
-      ========================= */
 
       localStorage.setItem(
         "libdate_profile",
@@ -878,6 +932,9 @@ function SignupFlow({
         age:
           calculateAge(form.dob),
 
+        phone:
+          "",
+
         email:
           normalizedEmail,
 
@@ -892,10 +949,11 @@ function SignupFlow({
           new Date().toISOString()
       };
 
-      /* =========================
-         IF EMAIL CONFIRMATION IS OFF
-         SAVE PROFILE IMMEDIATELY.
-      ========================= */
+      /*
+       * If email confirmation is disabled,
+       * save immediately because a session
+       * exists.
+       */
 
       if (data.session) {
 
@@ -924,13 +982,21 @@ function SignupFlow({
                 dob:
                   form.dob,
 
+                phone:
+                  null,
+
                 profile_photo_path:
                   profilePhotoData ||
                   form.profilePhotoPreview ||
+                  null,
+
+                live_selfie_path:
+                  liveSelfie ||
                   null
               },
               {
-                onConflict: "id"
+                onConflict:
+                  "id"
               }
             );
 
@@ -1751,6 +1817,13 @@ function LiveVerificationStep({
 
   const verify = async () => {
 
+    if (!selfie) {
+      setError(
+        "Please take a live selfie first."
+      );
+      return;
+    }
+
     setVerifying(true);
     setError("");
 
@@ -2483,11 +2556,6 @@ function Discover({
   const [passes, setPasses] =
     useState({});
 
-  /* =========================
-     NEW:
-     Registered users from Supabase
-  ========================= */
-
   const [dbPeople, setDbPeople] =
     useState([]);
 
@@ -2500,28 +2568,15 @@ function Discover({
   const [profileError, setProfileError] =
     useState("");
 
-  /* =========================
-     NEW:
-     Load registered users
-  ========================= */
-
   const loadProfiles = async () => {
     try {
       setLoadingPeople(true);
       setProfileError("");
 
       const {
-        data: authData,
-        error: authError
+        data: authData
       } =
         await supabase.auth.getUser();
-
-      if (authError) {
-        console.error(
-          "Unable to get current user:",
-          authError
-        );
-      }
 
       const currentUserId =
         authData?.user?.id || "";
@@ -2563,12 +2618,6 @@ function Discover({
 
         return;
       }
-
-      /* =========================
-         Convert database profiles
-         into the existing PersonCard
-         format.
-      ========================= */
 
       const mappedPeople =
         (data || [])
@@ -2659,18 +2708,10 @@ function Discover({
     loadProfiles();
   }, []);
 
-  /* =========================
-     COMBINE SAMPLE + REAL USERS
-  ========================= */
-
   const allPeople = [
     ...dbPeople,
     ...people
   ];
-
-  /* =========================
-     SEARCH
-  ========================= */
 
   const normalizedSearch =
     searchTerm
@@ -2777,9 +2818,7 @@ function Discover({
 
         </div>
 
-        {/* =========================
-            NEW SEARCH BOX
-        ========================= */}
+        {/* SEARCH */}
 
         <div
           className="search"
@@ -2965,6 +3004,10 @@ function PersonPage({
   setPage,
   notify
 }) {
+  if (!person) {
+    return null;
+  }
+
   const photos =
     person?.photos?.length
       ? person.photos
@@ -3642,8 +3685,71 @@ function Chat({
 ========================= */
 
 function Profile({
-  userProfile
+  userProfile,
+  setUserProfile,
+  onLogout,
+  notify
 }) {
+  const [editing, setEditing] =
+    useState(false);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [photoFile, setPhotoFile] =
+    useState(null);
+
+  const [form, setForm] =
+    useState({
+      firstName:
+        userProfile?.firstName || "",
+
+      lastName:
+        userProfile?.lastName || "",
+
+      displayName:
+        userProfile?.displayName || "",
+
+      location:
+        userProfile?.location || "",
+
+      dob:
+        userProfile?.dob || "",
+
+      phone:
+        userProfile?.phone || "",
+
+      profilePhoto:
+        userProfile?.profilePhoto || ""
+    });
+
+  useEffect(() => {
+    setForm({
+      firstName:
+        userProfile?.firstName || "",
+
+      lastName:
+        userProfile?.lastName || "",
+
+      displayName:
+        userProfile?.displayName || "",
+
+      location:
+        userProfile?.location || "",
+
+      dob:
+        userProfile?.dob || "",
+
+      phone:
+        userProfile?.phone || "",
+
+      profilePhoto:
+        userProfile?.profilePhoto || ""
+    });
+  }, [userProfile]);
 
   const fullName =
     userProfile?.displayName ||
@@ -3665,6 +3771,632 @@ function Profile({
     userProfile?.profilePhoto ||
     "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=85";
 
+  const updateField = (
+    field,
+    value
+  ) => {
+    setForm(
+      (current) => ({
+        ...current,
+        [field]: value
+      })
+    );
+  };
+
+  const openEdit = () => {
+    setError("");
+
+    setForm({
+      firstName:
+        userProfile?.firstName || "",
+
+      lastName:
+        userProfile?.lastName || "",
+
+      displayName:
+        userProfile?.displayName || "",
+
+      location:
+        userProfile?.location || "",
+
+      dob:
+        userProfile?.dob || "",
+
+      phone:
+        userProfile?.phone || "",
+
+      profilePhoto:
+        userProfile?.profilePhoto || ""
+    });
+
+    setPhotoFile(null);
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setError("");
+    setPhotoFile(null);
+    setEditing(false);
+  };
+
+  const handleProfilePhoto = async (
+    file
+  ) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError(
+        "Please select an image file."
+      );
+      return;
+    }
+
+    if (
+      file.size >
+      10 * 1024 * 1024
+    ) {
+      setError(
+        "Please select an image smaller than 10MB."
+      );
+      return;
+    }
+
+    try {
+      setError("");
+
+      const dataUrl =
+        await fileToDataUrl(
+          file
+        );
+
+      setPhotoFile(file);
+
+      setForm(
+        (current) => ({
+          ...current,
+          profilePhoto:
+            dataUrl
+        })
+      );
+
+    } catch (err) {
+      console.error(
+        "Profile photo error:",
+        err
+      );
+
+      setError(
+        "Unable to prepare the new profile photo."
+      );
+    }
+  };
+
+  const saveProfile = async () => {
+    setError("");
+
+    if (!form.firstName.trim()) {
+      setError(
+        "First name is required."
+      );
+      return;
+    }
+
+    if (!form.lastName.trim()) {
+      setError(
+        "Last name is required."
+      );
+      return;
+    }
+
+    if (!form.displayName.trim()) {
+      setError(
+        "Display name is required."
+      );
+      return;
+    }
+
+    if (!form.location.trim()) {
+      setError(
+        "Location is required."
+      );
+      return;
+    }
+
+    if (!form.dob) {
+      setError(
+        "Date of birth is required."
+      );
+      return;
+    }
+
+    const newAge =
+      calculateAge(
+        form.dob
+      );
+
+    if (newAge < 18) {
+      setError(
+        "You must be at least 18 years old."
+      );
+      return;
+    }
+
+    if (newAge > 100) {
+      setError(
+        "Please enter a valid date of birth."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const {
+        data: authData,
+        error: authError
+      } =
+        await supabase.auth.getUser();
+
+      if (authError) {
+        throw authError;
+      }
+
+      const userId =
+        authData?.user?.id ||
+        userProfile?.id;
+
+      if (!userId) {
+        throw new Error(
+          "Your account could not be identified. Please log in again."
+        );
+      }
+
+      const {
+        data: savedData,
+        error: saveError
+      } =
+        await supabase
+          .from("profiles")
+          .upsert(
+            {
+              id:
+                userId,
+
+              first_name:
+                form.firstName.trim(),
+
+              last_name:
+                form.lastName.trim(),
+
+              display_name:
+                form.displayName.trim(),
+
+              location:
+                form.location.trim(),
+
+              dob:
+                form.dob ||
+                null,
+
+              phone:
+                form.phone.trim() ||
+                null,
+
+              profile_photo_path:
+                form.profilePhoto ||
+                null
+            },
+            {
+              onConflict:
+                "id"
+            }
+          )
+          .select(
+            `
+              id,
+              first_name,
+              last_name,
+              display_name,
+              location,
+              dob,
+              phone,
+              profile_photo_path,
+              live_selfie_path,
+              created_at
+            `
+          )
+          .single();
+
+      if (saveError) {
+        console.error(
+          "Supabase profile update error:",
+          saveError
+        );
+
+        throw saveError;
+      }
+
+      const updatedProfile = {
+        id:
+          userId,
+
+        firstName:
+          savedData?.first_name ||
+          form.firstName.trim(),
+
+        lastName:
+          savedData?.last_name ||
+          form.lastName.trim(),
+
+        displayName:
+          savedData?.display_name ||
+          form.displayName.trim(),
+
+        location:
+          savedData?.location ||
+          form.location.trim(),
+
+        dob:
+          savedData?.dob ||
+          form.dob,
+
+        age:
+          calculateAge(
+            savedData?.dob ||
+            form.dob
+          ),
+
+        phone:
+          savedData?.phone ||
+          form.phone.trim(),
+
+        email:
+          userProfile?.email ||
+          authData?.user?.email ||
+          "",
+
+        profilePhoto:
+          savedData?.profile_photo_path ||
+          form.profilePhoto ||
+          "",
+
+        liveSelfie:
+          userProfile?.liveSelfie ||
+          savedData?.live_selfie_path ||
+          "",
+
+        createdAt:
+          savedData?.created_at ||
+          userProfile?.createdAt ||
+          new Date().toISOString()
+      };
+
+      setUserProfile(
+        updatedProfile
+      );
+
+      localStorage.setItem(
+        "libdate_profile",
+        JSON.stringify(
+          updatedProfile
+        )
+      );
+
+      setEditing(false);
+      setPhotoFile(null);
+
+      notify(
+        "Profile updated successfully ✓"
+      );
+
+    } catch (err) {
+      console.error(
+        "Profile save error:",
+        err
+      );
+
+      setError(
+        err?.message ||
+        "Unable to save your profile. Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="screen">
+
+        <Header
+          title="Edit Profile"
+          back
+          onBack={cancelEdit}
+        />
+
+        <main className="content profile-page">
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: "22px"
+            }}
+          >
+
+            <div
+              style={{
+                position: "relative"
+              }}
+            >
+
+              <img
+                src={
+                  form.profilePhoto ||
+                  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=85"
+                }
+                alt="Profile preview"
+                style={{
+                  width: "120px",
+                  height: "120px",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  display: "block",
+                  border:
+                    "4px solid #fff",
+                  boxShadow:
+                    "0 4px 18px rgba(0,0,0,.12)"
+                }}
+              />
+
+              <label
+                className="edit-photo"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer"
+                }}
+              >
+
+                <Camera size={16} />
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) =>
+                    handleProfilePhoto(
+                      e.target.files?.[0]
+                    )
+                  }
+                />
+
+              </label>
+
+            </div>
+
+          </div>
+
+          <div
+            className="signup-form"
+            style={{
+              width: "100%"
+            }}
+          >
+
+            <div className="two-inputs">
+
+              <div>
+                <label>
+                  First name
+                </label>
+
+                <div className="input-wrap">
+                  <User size={18} />
+
+                  <input
+                    value={
+                      form.firstName
+                    }
+                    onChange={(e) =>
+                      updateField(
+                        "firstName",
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label>
+                  Last name
+                </label>
+
+                <div className="input-wrap">
+                  <User size={18} />
+
+                  <input
+                    value={
+                      form.lastName
+                    }
+                    onChange={(e) =>
+                      updateField(
+                        "lastName",
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+              </div>
+
+            </div>
+
+            <label>
+              Display name
+            </label>
+
+            <div className="input-wrap">
+
+              <CircleUserRound
+                size={18}
+              />
+
+              <input
+                value={
+                  form.displayName
+                }
+                onChange={(e) =>
+                  updateField(
+                    "displayName",
+                    e.target.value
+                  )
+                }
+                placeholder="What people see"
+              />
+
+            </div>
+
+            <label>
+              Location
+            </label>
+
+            <div className="input-wrap">
+
+              <MapPinned
+                size={18}
+              />
+
+              <input
+                value={
+                  form.location
+                }
+                onChange={(e) =>
+                  updateField(
+                    "location",
+                    e.target.value
+                  )
+                }
+                placeholder="e.g. Sinkor, Monrovia"
+              />
+
+            </div>
+
+            <label>
+              Date of birth
+            </label>
+
+            <div className="input-wrap">
+
+              <CalendarDays
+                size={18}
+              />
+
+              <input
+                type="date"
+                value={
+                  form.dob
+                }
+                onChange={(e) =>
+                  updateField(
+                    "dob",
+                    e.target.value
+                  )
+                }
+              />
+
+            </div>
+
+            <label>
+              Phone number
+            </label>
+
+            <div className="input-wrap">
+
+              <MessageCircle
+                size={18}
+              />
+
+              <input
+                type="tel"
+                value={
+                  form.phone
+                }
+                onChange={(e) =>
+                  updateField(
+                    "phone",
+                    e.target.value
+                  )
+                }
+                placeholder="Phone number"
+              />
+
+            </div>
+
+            <label>
+              Email address
+            </label>
+
+            <div className="input-wrap">
+
+              <Mail size={18} />
+
+              <input
+                type="email"
+                value={
+                  userProfile?.email ||
+                  ""
+                }
+                readOnly
+                style={{
+                  opacity: .65,
+                  cursor:
+                    "not-allowed"
+                }}
+              />
+
+            </div>
+
+            <p className="field-help">
+              Your email is managed by your
+              LIBDate login account.
+            </p>
+
+            {error && (
+              <div className="form-error">
+                {error}
+              </div>
+            )}
+
+            <button
+              className="primary"
+              onClick={saveProfile}
+              disabled={saving}
+            >
+              <Check size={18} />
+
+              {saving
+                ? "Saving..."
+                : "Save changes"}
+            </button>
+
+            <button
+              className="secondary-auth"
+              onClick={cancelEdit}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+
+          </div>
+
+        </main>
+
+      </div>
+    );
+  }
+
   return (
     <div className="screen">
 
@@ -3681,7 +4413,11 @@ function Profile({
             alt={fullName}
           />
 
-          <button className="edit-photo">
+          <button
+            className="edit-photo"
+            onClick={openEdit}
+            aria-label="Edit profile photo"
+          >
             <Camera size={16} />
           </button>
 
@@ -3721,49 +4457,129 @@ function Profile({
 
           </div>
 
-        </div>
-
-        <div className="profile-menu">
-
-          {[
-            [
-              "Profile details",
-              CircleUserRound
-            ],
-            [
-              "Dating preferences",
-              Heart
-            ],
-            [
-              "Privacy & safety",
-              Lock
-            ],
-            [
-              "Location & discovery",
-              Globe2
-            ]
-          ].map(
-            ([x, I]) => (
-              <button key={x}>
-
-                <I size={19} />
-
-                <span>
-                  {x}
-                </span>
-
-                <ChevronLeft
-                  className="chevron-right"
-                />
-
-              </button>
-            )
+          {userProfile?.email && (
+            <div
+              style={{
+                marginTop: "7px",
+                color: "#6b7280",
+                fontSize: "13px"
+              }}
+            >
+              <Mail
+                size={13}
+                style={{
+                  verticalAlign:
+                    "middle",
+                  marginRight:
+                    "5px"
+                }}
+              />
+              {userProfile.email}
+            </div>
           )}
 
         </div>
 
-        <button className="outline">
+        <div className="profile-menu">
+
+          <button
+            onClick={openEdit}
+          >
+
+            <CircleUserRound
+              size={19}
+            />
+
+            <span>
+              Profile details
+            </span>
+
+            <ChevronLeft
+              className="chevron-right"
+            />
+
+          </button>
+
+          <button
+            onClick={() =>
+              notify(
+                "Dating preferences are coming soon."
+              )
+            }
+          >
+
+            <Heart size={19} />
+
+            <span>
+              Dating preferences
+            </span>
+
+            <ChevronLeft
+              className="chevron-right"
+            />
+
+          </button>
+
+          <button
+            onClick={() =>
+              notify(
+                "Privacy & safety settings are coming soon."
+              )
+            }
+          >
+
+            <Lock size={19} />
+
+            <span>
+              Privacy & safety
+            </span>
+
+            <ChevronLeft
+              className="chevron-right"
+            />
+
+          </button>
+
+          <button
+            onClick={() =>
+              notify(
+                "Location & discovery settings are coming soon."
+              )
+            }
+          >
+
+            <Globe2 size={19} />
+
+            <span>
+              Location & discovery
+            </span>
+
+            <ChevronLeft
+              className="chevron-right"
+            />
+
+          </button>
+
+        </div>
+
+        <button
+          className="outline"
+          onClick={openEdit}
+        >
           Edit profile
+        </button>
+
+        <button
+          className="outline"
+          onClick={onLogout}
+          style={{
+            marginTop: "10px",
+            color: "#b91c1c",
+            borderColor:
+              "rgba(185,28,28,.25)"
+          }}
+        >
+          Log out
         </button>
 
       </main>
@@ -3796,35 +4612,26 @@ function Toast({
 
 function App() {
 
+  /*
+   * We no longer trust only:
+   *
+   * localStorage.getItem(
+   *   "libdate_authenticated"
+   * )
+   *
+   * because that can say "true" even
+   * after the real Supabase session
+   * has disappeared.
+   */
+
+  const [authChecking, setAuthChecking] =
+    useState(true);
+
   const [authenticated, setAuthenticated] =
-    useState(() => {
-      return (
-        localStorage.getItem(
-          "libdate_authenticated"
-        ) === "true"
-      );
-    });
+    useState(false);
 
   const [userProfile, setUserProfile] =
-    useState(() => {
-
-      const savedProfile =
-        localStorage.getItem(
-          "libdate_profile"
-        );
-
-      if (!savedProfile) {
-        return null;
-      }
-
-      try {
-        return JSON.parse(
-          savedProfile
-        );
-      } catch {
-        return null;
-      }
-    });
+    useState(null);
 
   const [page, setPage] =
     useState("discover");
@@ -3845,6 +4652,426 @@ function App() {
       setToast("");
     }, 2200);
   };
+
+  /*
+   * Build the application profile
+   * from the current Supabase user
+   * and the profiles table.
+   */
+
+  const buildCurrentProfile =
+    async (user) => {
+
+      if (!user) {
+        return null;
+      }
+
+      const metadata =
+        user.user_metadata || {};
+
+      let databaseProfile =
+        null;
+
+      const {
+        data,
+        error
+      } =
+        await supabase
+          .from("profiles")
+          .select(
+            `
+              id,
+              first_name,
+              last_name,
+              display_name,
+              location,
+              dob,
+              phone,
+              profile_photo_path,
+              live_selfie_path,
+              created_at
+            `
+          )
+          .eq(
+            "id",
+            user.id
+          )
+          .maybeSingle();
+
+      if (error) {
+        console.error(
+          "Unable to load current profile:",
+          error
+        );
+      } else {
+        databaseProfile =
+          data;
+      }
+
+      /*
+       * If the profile row does not exist
+       * yet, use Auth metadata/local data.
+       */
+
+      let localProfile = null;
+
+      const localProfileText =
+        localStorage.getItem(
+          "libdate_profile"
+        );
+
+      if (localProfileText) {
+        try {
+          localProfile =
+            JSON.parse(
+              localProfileText
+            );
+        } catch {
+          localProfile = null;
+        }
+      }
+
+      const profile = {
+        id:
+          user.id,
+
+        firstName:
+          databaseProfile?.first_name ||
+          localProfile?.firstName ||
+          metadata.first_name ||
+          "",
+
+        lastName:
+          databaseProfile?.last_name ||
+          localProfile?.lastName ||
+          metadata.last_name ||
+          "",
+
+        displayName:
+          databaseProfile?.display_name ||
+          localProfile?.displayName ||
+          metadata.display_name ||
+          "",
+
+        location:
+          databaseProfile?.location ||
+          localProfile?.location ||
+          metadata.location ||
+          "",
+
+        dob:
+          databaseProfile?.dob ||
+          localProfile?.dob ||
+          metadata.dob ||
+          "",
+
+        age:
+          calculateAge(
+            databaseProfile?.dob ||
+            localProfile?.dob ||
+            metadata.dob ||
+            ""
+          ),
+
+        phone:
+          databaseProfile?.phone ||
+          localProfile?.phone ||
+          "",
+
+        email:
+          user.email ||
+          localProfile?.email ||
+          "",
+
+        profilePhoto:
+          databaseProfile?.profile_photo_path ||
+          localProfile?.profilePhoto ||
+          "",
+
+        liveSelfie:
+          databaseProfile?.live_selfie_path ||
+          localProfile?.liveSelfie ||
+          "",
+
+        createdAt:
+          databaseProfile?.created_at ||
+          localProfile?.createdAt ||
+          new Date().toISOString()
+      };
+
+      /*
+       * If there is no profile row yet,
+       * create it after authentication.
+       *
+       * This fixes users who signed up while
+       * email confirmation was enabled.
+       */
+
+      if (!databaseProfile) {
+
+        const {
+          error: createProfileError
+        } =
+          await supabase
+            .from("profiles")
+            .upsert(
+              {
+                id:
+                  user.id,
+
+                first_name:
+                  profile.firstName,
+
+                last_name:
+                  profile.lastName,
+
+                display_name:
+                  profile.displayName,
+
+                location:
+                  profile.location,
+
+                dob:
+                  profile.dob ||
+                  null,
+
+                phone:
+                  profile.phone ||
+                  null,
+
+                profile_photo_path:
+                  profile.profilePhoto ||
+                  null,
+
+                live_selfie_path:
+                  profile.liveSelfie ||
+                  null
+              },
+              {
+                onConflict:
+                  "id"
+              }
+            );
+
+        if (createProfileError) {
+          console.error(
+            "Unable to create missing profile row:",
+            createProfileError
+          );
+        }
+      }
+
+      localStorage.setItem(
+        "libdate_profile",
+        JSON.stringify(profile)
+      );
+
+      return profile;
+    };
+
+  /*
+   * Initial authentication check.
+   *
+   * Supabase itself determines whether
+   * the user is actually logged in.
+   */
+
+  useEffect(() => {
+
+    let mounted = true;
+
+    const initializeAuth =
+      async () => {
+
+        try {
+
+          const {
+            data,
+            error
+          } =
+            await supabase.auth.getUser();
+
+          if (!mounted) {
+            return;
+          }
+
+          if (
+            error ||
+            !data?.user
+          ) {
+
+            setAuthenticated(
+              false
+            );
+
+            setUserProfile(
+              null
+            );
+
+            localStorage.removeItem(
+              "libdate_authenticated"
+            );
+
+            return;
+          }
+
+          const profile =
+            await buildCurrentProfile(
+              data.user
+            );
+
+          if (!mounted) {
+            return;
+          }
+
+          setUserProfile(
+            profile
+          );
+
+          setAuthenticated(
+            true
+          );
+
+          localStorage.setItem(
+            "libdate_authenticated",
+            "true"
+          );
+
+        } catch (err) {
+
+          console.error(
+            "Authentication initialization error:",
+            err
+          );
+
+          if (mounted) {
+
+            setAuthenticated(
+              false
+            );
+
+            setUserProfile(
+              null
+            );
+
+            localStorage.removeItem(
+              "libdate_authenticated"
+            );
+          }
+
+        } finally {
+
+          if (mounted) {
+            setAuthChecking(false);
+          }
+        }
+      };
+
+    initializeAuth();
+
+    /*
+     * Keep React synchronized with
+     * Supabase authentication changes.
+     */
+
+    const {
+      data: authListener
+    } =
+      supabase.auth.onAuthStateChange(
+        async (
+          event,
+          session
+        ) => {
+
+          if (!mounted) {
+            return;
+          }
+
+          if (
+            event ===
+            "SIGNED_OUT"
+          ) {
+
+            setAuthenticated(
+              false
+            );
+
+            setUserProfile(
+              null
+            );
+
+            setPage(
+              "discover"
+            );
+
+            localStorage.removeItem(
+              "libdate_authenticated"
+            );
+
+            localStorage.removeItem(
+              "libdate_profile"
+            );
+
+            return;
+          }
+
+          if (
+            session?.user
+          ) {
+
+            /*
+             * Don't run a heavy profile query
+             * for every token refresh.
+             */
+
+            if (
+              event ===
+              "SIGNED_IN" ||
+              event ===
+              "INITIAL_SESSION" ||
+              event ===
+              "USER_UPDATED"
+            ) {
+
+              const profile =
+                await buildCurrentProfile(
+                  session.user
+                );
+
+              if (!mounted) {
+                return;
+              }
+
+              setUserProfile(
+                profile
+              );
+            }
+
+            setAuthenticated(
+              true
+            );
+
+            localStorage.setItem(
+              "libdate_authenticated",
+              "true"
+            );
+          }
+        }
+      );
+
+    return () => {
+
+      mounted = false;
+
+      authListener?.subscription?.unsubscribe();
+
+    };
+
+  }, []);
+
+  /*
+   * Called after successful login/signup.
+   */
 
   const handleAuthenticated =
     (profile) => {
@@ -3867,11 +5094,125 @@ function App() {
         true
       );
 
+      setPage(
+        "discover"
+      );
+
       localStorage.setItem(
         "libdate_authenticated",
         "true"
       );
     };
+
+  /*
+   * REAL LOGOUT
+   */
+
+  const handleLogout =
+    async () => {
+
+      try {
+
+        const {
+          error
+        } =
+          await supabase.auth.signOut();
+
+        if (error) {
+          throw error;
+        }
+
+        setAuthenticated(
+          false
+        );
+
+        setUserProfile(
+          null
+        );
+
+        setPage(
+          "discover"
+        );
+
+        localStorage.removeItem(
+          "libdate_authenticated"
+        );
+
+        localStorage.removeItem(
+          "libdate_profile"
+        );
+
+      } catch (err) {
+
+        console.error(
+          "Logout error:",
+          err
+        );
+
+        /*
+         * Even if Supabase logout has
+         * a temporary issue, don't keep
+         * the user inside the app.
+         */
+
+        setAuthenticated(
+          false
+        );
+
+        setUserProfile(
+          null
+        );
+
+        localStorage.removeItem(
+          "libdate_authenticated"
+        );
+
+        localStorage.removeItem(
+          "libdate_profile"
+        );
+      }
+    };
+
+  /*
+   * Don't show the app or login screen
+   * until Supabase has checked the real
+   * authentication state.
+   */
+
+  if (authChecking) {
+
+    return (
+      <div
+        className="auth-screen"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}
+      >
+
+        <FlagWatermark />
+
+        <div
+          className="auth-card"
+          style={{
+            textAlign: "center"
+          }}
+        >
+
+          <div className="auth-logo">
+            <Logo />
+          </div>
+
+          <p>
+            Checking your LIBDate session...
+          </p>
+
+        </div>
+
+      </div>
+    );
+  }
 
   if (!authenticated) {
 
@@ -3919,6 +5260,15 @@ function App() {
       <Profile
         userProfile={
           userProfile
+        }
+        setUserProfile={
+          setUserProfile
+        }
+        onLogout={
+          handleLogout
+        }
+        notify={
+          notify
         }
       />
     );

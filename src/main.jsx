@@ -4025,25 +4025,25 @@ function Messages({
 
         if (!person) continue;
 
-        const {
-          data: lastMessages
-        } =
-          await supabase
-            .from("messages")
-            .select(
-              "content, created_at, sender_id"
-            )
-            .eq(
-              "match_id",
-              match.id
-            )
-            .order(
-              "created_at",
-              {
-                ascending: false
-              }
-            )
-            .limit(1);
+       const {
+         data: lastMessages
+      } =
+        await supabase
+          .from("messages")
+          .select(
+            "message, created_at, sender_id"
+        )
+        .eq(
+          "match_id",
+          match.id
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false
+          }
+        )
+        .limit(1);
 
         results.push({
           matchId:
@@ -4295,7 +4295,7 @@ function Chat({
         await supabase
           .from("messages")
           .select(
-            "id, match_id, sender_id, content, created_at"
+            "id, match_id, sender_id, message, created_at"
           )
           .eq(
             "match_id",
@@ -4466,7 +4466,7 @@ function Chat({
   }
 
   return (
-    <div className="screen">
+    <div className="screen"> xfdsxf
 
       <Header
         title={
@@ -4541,7 +4541,7 @@ function Chat({
                   }
                   key={message.id}
                 >
-                  {message.content}
+                  {message.message}
                 </div>
               )
             )}

@@ -4415,7 +4415,7 @@ function Chat({
             sender_id:
               currentUserId,
 
-            content:
+            message:
               cleanText
           })
           .select()

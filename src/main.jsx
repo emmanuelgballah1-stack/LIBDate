@@ -175,6 +175,334 @@ function normalizeMatch(match, currentUserId) {
 }
 
 /* =========================================================
+   NOTIFICATIONS
+========================================================= */
+
+/*
+  This creates the notification when somebody likes
+  another user's profile.
+
+  IMPORTANT:
+  We are intentionally testing this against the database
+  before making any database changes.
+*/
+async function createLikeNotification({
+  receiverId,
+  senderId,
+  senderName
+}) {
+  if (!receiverId || !senderId) {
+    return {
+      success: false,
+      error: new Error(
+        "Notification users could not be identified."
+      )
+    };
+  }
+
+  try {
+    const {
+      data,
+      error
+    } = await supabase
+      .from("notifications")
+      .insert({
+        user_id: receiverId,
+        sender_id: senderId,
+        type: "like",
+        message: `${senderName} liked your profile ❤️`,
+        read: false
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error(
+        "Notification creation error:",
+        error
+      );
+
+      return {
+        success: false,
+        error
+      };
+    }
+
+    return {
+      success: true,
+      data
+    };
+
+  } catch (err) {
+    console.error(
+      "Unexpected notification creation error:",
+      err
+    );
+
+    return {
+      success: false,
+      error: err
+    };
+  }
+}
+
+/* =========================================================
+   NOTIFICATION PANEL
+========================================================= */
+
+function NotificationPanel({
+  notifications,
+  loading,
+  onClose,
+  onMarkRead,
+  onMarkAllRead
+}) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: "68px",
+        right: "16px",
+        width: "min(360px, calc(100vw - 32px))",
+        maxHeight: "min(520px, calc(100vh - 100px))",
+        overflowY: "auto",
+        background: "#fff",
+        borderRadius: "18px",
+        boxShadow:
+          "0 18px 50px rgba(0,0,0,.18)",
+        border:
+          "1px solid rgba(0,0,0,.08)",
+        zIndex: 1000
+      }}
+    >
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "15px 16px",
+          borderBottom:
+            "1px solid rgba(0,0,0,.07)"
+        }}
+      >
+
+        <div>
+          <strong
+            style={{
+              fontSize: "16px"
+            }}
+          >
+            Notifications
+          </strong>
+
+          <div
+            style={{
+              color: "#6b7280",
+              fontSize: "12px",
+              marginTop: "2px"
+            }}
+          >
+            Your latest activity
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "4px"
+          }}
+        >
+
+          {notifications.some(
+            (notification) =>
+              !notification.read
+          ) && (
+            <button
+              type="button"
+              onClick={onMarkAllRead}
+              style={{
+                border: 0,
+                background: "transparent",
+                color: "#2563eb",
+                fontSize: "11px",
+                cursor: "pointer",
+                padding: "6px"
+              }}
+            >
+              Mark all read
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: "32px",
+              height: "32px",
+              border: 0,
+              borderRadius: "50%",
+              background:
+                "rgba(0,0,0,.05)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+          >
+            <X size={17} />
+          </button>
+
+        </div>
+
+      </div>
+
+      {loading ? (
+        <div
+          style={{
+            padding: "30px 18px",
+            textAlign: "center",
+            color: "#6b7280",
+            fontSize: "13px"
+          }}
+        >
+          Loading notifications...
+        </div>
+      ) : notifications.length === 0 ? (
+        <div
+          style={{
+            padding: "35px 18px",
+            textAlign: "center",
+            color: "#6b7280"
+          }}
+        >
+          <Bell
+            size={30}
+            style={{
+              marginBottom: "8px"
+            }}
+          />
+
+          <p
+            style={{
+              margin: 0,
+              fontSize: "13px"
+            }}
+          >
+            No notifications yet.
+          </p>
+        </div>
+      ) : (
+        notifications.map(
+          (notification) => (
+            <button
+              type="button"
+              key={notification.id}
+              onClick={() =>
+                onMarkRead(
+                  notification.id
+                )
+              }
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "11px",
+                padding: "13px 16px",
+                border: 0,
+                borderBottom:
+                  "1px solid rgba(0,0,0,.06)",
+                background:
+                  notification.read
+                    ? "#fff"
+                    : "rgba(37,99,235,.06)",
+                textAlign: "left",
+                cursor: "pointer"
+              }}
+            >
+
+              <div
+                style={{
+                  width: "38px",
+                  height: "38px",
+                  flex: "0 0 38px",
+                  borderRadius: "50%",
+                  background:
+                    "rgba(37,99,235,.1)",
+                  color: "#2563eb",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+              >
+                <Heart
+                  size={18}
+                  fill="currentColor"
+                />
+              </div>
+
+              <div
+                style={{
+                  minWidth: 0,
+                  flex: 1
+                }}
+              >
+
+                <div
+                  style={{
+                    color: "#111827",
+                    fontSize: "13px",
+                    lineHeight: 1.45,
+                    fontWeight:
+                      notification.read
+                        ? 400
+                        : 600
+                  }}
+                >
+                  {notification.message ||
+                    "Someone interacted with your profile."}
+                </div>
+
+                <div
+                  style={{
+                    color: "#9ca3af",
+                    fontSize: "11px",
+                    marginTop: "4px"
+                  }}
+                >
+                  {notification.created_at
+                    ? new Date(
+                        notification.created_at
+                      ).toLocaleString()
+                    : "Just now"}
+                </div>
+
+              </div>
+
+              {!notification.read && (
+                <span
+                  style={{
+                    width: "7px",
+                    height: "7px",
+                    borderRadius: "50%",
+                    background: "#2563eb",
+                    marginTop: "7px",
+                    flex: "0 0 7px"
+                  }}
+                />
+              )}
+
+            </button>
+          )
+        )
+      )}
+
+    </div>
+  );
+}
+
+/* =========================================================
    AUTH SCREEN
 ========================================================= */
 
@@ -1806,11 +2134,17 @@ function BottomNav({
   );
 }
 
+/* =========================================================
+   HEADER
+========================================================= */
+
 function Header({
   title,
   back,
   onBack,
-  right
+  right,
+  onNotificationClick,
+  unreadNotifications = 0
 }) {
   return (
     <header className="topbar">
@@ -1835,11 +2169,51 @@ function Header({
       {!back && (
         <div className="header-actions">
 
-          <button className="icon-btn">
+          <button
+            className="icon-btn"
+            type="button"
+            onClick={
+              onNotificationClick
+            }
+            style={{
+              position: "relative"
+            }}
+          >
             <Bell />
+
+            {unreadNotifications > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "4px",
+                  right: "4px",
+                  minWidth: "16px",
+                  height: "16px",
+                  padding: "0 4px",
+                  borderRadius: "999px",
+                  background: "#dc2626",
+                  color: "#fff",
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border:
+                    "2px solid #fff"
+                }}
+              >
+                {unreadNotifications > 99
+                  ? "99+"
+                  : unreadNotifications}
+              </span>
+            )}
+
           </button>
 
-          <button className="icon-btn">
+          <button
+            className="icon-btn"
+            type="button"
+          >
             <Settings />
           </button>
 
@@ -2002,7 +2376,9 @@ function PersonCard({
 function Discover({
   setPage,
   setSelected,
-  notify
+  notify,
+  unreadNotifications,
+  onNotificationClick
 }) {
   const [likes, setLikes] =
     useState({});
@@ -2162,6 +2538,20 @@ function Discover({
       setLikingId(person.id);
 
       const {
+        data: authData
+      } =
+        await supabase.auth.getUser();
+
+      const currentUserId =
+        authData?.user?.id;
+
+      if (!currentUserId) {
+        throw new Error(
+          "Your account could not be identified."
+        );
+      }
+
+      const {
         data,
         error
       } =
@@ -2183,6 +2573,30 @@ function Discover({
           [person.id]: true
         })
       );
+
+      /*
+        NEW:
+        Send a notification to the person
+        who received the like.
+      */
+      const notificationResult =
+        await createLikeNotification({
+          receiverId:
+            person.databaseId,
+
+          senderId:
+            currentUserId,
+
+          senderName:
+            userProfileName()
+        });
+
+      if (!notificationResult.success) {
+        console.error(
+          "Like succeeded, but notification could not be created:",
+          notificationResult.error
+        );
+      }
 
       if (data?.matched) {
         notify(
@@ -2207,6 +2621,39 @@ function Discover({
     } finally {
       setLikingId("");
     }
+  };
+
+  /*
+    This helper gets the currently logged-in
+    user's display name for notifications.
+  */
+  const userProfileName = () => {
+    try {
+      const saved =
+        localStorage.getItem(
+          "libdate_profile"
+        );
+
+      if (saved) {
+        const parsed =
+          JSON.parse(saved);
+
+        return (
+          parsed.displayName ||
+          `${parsed.firstName || ""} ${
+            parsed.lastName || ""
+          }`.trim() ||
+          "Someone"
+        );
+      }
+    } catch (err) {
+      console.error(
+        "Unable to read local profile:",
+        err
+      );
+    }
+
+    return "Someone";
   };
 
   const handlePass = (person) => {
@@ -2253,7 +2700,14 @@ function Discover({
   return (
     <div className="screen">
 
-      <Header />
+      <Header
+        unreadNotifications={
+          unreadNotifications
+        }
+        onNotificationClick={
+          onNotificationClick
+        }
+      />
 
       <main className="content discover-page">
 
@@ -2627,7 +3081,9 @@ function StatusPage({
 function PersonPage({
   person,
   setPage,
-  notify
+  notify,
+  unreadNotifications,
+  onNotificationClick
 }) {
   const [liked, setLiked] =
     useState(false);
@@ -2685,6 +3141,20 @@ function PersonPage({
       setLoading(true);
 
       const {
+        data: authData
+      } =
+        await supabase.auth.getUser();
+
+      const currentUserId =
+        authData?.user?.id;
+
+      if (!currentUserId) {
+        throw new Error(
+          "Your account could not be identified."
+        );
+      }
+
+      const {
         data,
         error
       } =
@@ -2699,6 +3169,55 @@ function PersonPage({
       if (error) throw error;
 
       setLiked(true);
+
+      /*
+        NEW:
+        Create notification for the
+        person who received the like.
+      */
+      let senderName = "Someone";
+
+      try {
+        const saved =
+          localStorage.getItem(
+            "libdate_profile"
+          );
+
+        if (saved) {
+          const parsed =
+            JSON.parse(saved);
+
+          senderName =
+            parsed.displayName ||
+            `${parsed.firstName || ""} ${
+              parsed.lastName || ""
+            }`.trim() ||
+            "Someone";
+        }
+      } catch (err) {
+        console.error(
+          "Unable to get sender name:",
+          err
+        );
+      }
+
+      const notificationResult =
+        await createLikeNotification({
+          receiverId:
+            person.databaseId,
+
+          senderId:
+            currentUserId,
+
+          senderName
+        });
+
+      if (!notificationResult.success) {
+        console.error(
+          "Like succeeded, but notification could not be created:",
+          notificationResult.error
+        );
+      }
 
       notify(
         data?.matched
@@ -2735,6 +3254,12 @@ function PersonPage({
         back
         onBack={() =>
           setPage("discover")
+        }
+        unreadNotifications={
+          unreadNotifications
+        }
+        onNotificationClick={
+          onNotificationClick
         }
       />
 
@@ -2952,7 +3477,9 @@ function PersonPage({
 function Connections({
   setPage,
   setSelected,
-  notify
+  notify,
+  unreadNotifications,
+  onNotificationClick
 }) {
   const [connections, setConnections] =
     useState([]);
@@ -3172,7 +3699,14 @@ function Connections({
   return (
     <div className="screen">
 
-      <Header />
+      <Header
+        unreadNotifications={
+          unreadNotifications
+        }
+        onNotificationClick={
+          onNotificationClick
+        }
+      />
 
       <main className="content">
 
@@ -3381,7 +3915,9 @@ function Connections({
 
 function Messages({
   setPage,
-  setSelected
+  setSelected,
+  unreadNotifications,
+  onNotificationClick
 }) {
   const [chats, setChats] =
     useState([]);
@@ -3540,7 +4076,14 @@ function Messages({
   return (
     <div className="screen">
 
-      <Header />
+      <Header
+        unreadNotifications={
+          unreadNotifications
+        }
+        onNotificationClick={
+          onNotificationClick
+        }
+      />
 
       <main className="content">
 
@@ -4072,7 +4615,9 @@ function Profile({
   userProfile,
   setUserProfile,
   onLogout,
-  notify
+  notify,
+  unreadNotifications,
+  onNotificationClick
 }) {
   const [editing, setEditing] =
     useState(false);
@@ -4712,7 +5257,14 @@ function Profile({
   return (
     <div className="screen">
 
-      <Header />
+      <Header
+        unreadNotifications={
+          unreadNotifications
+        }
+        onNotificationClick={
+          onNotificationClick
+        }
+      />
 
       <main className="content profile-page">
 
@@ -4932,6 +5484,25 @@ function App() {
   const [toast, setToast] =
     useState("");
 
+  /* =======================================================
+     NOTIFICATION STATE
+  ======================================================= */
+
+  const [
+    notifications,
+    setNotifications
+  ] = useState([]);
+
+  const [
+    notificationLoading,
+    setNotificationLoading
+  ] = useState(false);
+
+  const [
+    notificationsOpen,
+    setNotificationsOpen
+  ] = useState(false);
+
   const notify = (message) => {
     setToast(message);
 
@@ -4939,6 +5510,199 @@ function App() {
       setToast("");
     }, 2200);
   };
+
+  /* =======================================================
+     LOAD NOTIFICATIONS
+  ======================================================= */
+
+  const loadNotifications =
+    async () => {
+      try {
+        setNotificationLoading(true);
+
+        const {
+          data: authData
+        } =
+          await supabase.auth.getUser();
+
+        const currentUserId =
+          authData?.user?.id;
+
+        if (!currentUserId) {
+          setNotifications([]);
+          return;
+        }
+
+        const {
+          data,
+          error
+        } =
+          await supabase
+            .from("notifications")
+            .select(`
+              id,
+              user_id,
+              sender_id,
+              type,
+              message,
+              read,
+              created_at
+            `)
+            .eq(
+              "user_id",
+              currentUserId
+            )
+            .order(
+              "created_at",
+              {
+                ascending: false
+              }
+            )
+            .limit(50);
+
+        if (error) {
+          console.error(
+            "Notifications loading error:",
+            error
+          );
+
+          /*
+            We don't crash the application if the
+            notifications table has not been created yet.
+          */
+          return;
+        }
+
+        setNotifications(
+          data || []
+        );
+
+      } catch (err) {
+        console.error(
+          "Unexpected notifications loading error:",
+          err
+        );
+      } finally {
+        setNotificationLoading(false);
+      }
+    };
+
+  /* =======================================================
+     MARK ONE NOTIFICATION AS READ
+  ======================================================= */
+
+  const markNotificationRead =
+    async (notificationId) => {
+      if (!notificationId) return;
+
+      setNotifications(
+        (current) =>
+          current.map(
+            (notification) =>
+              notification.id ===
+              notificationId
+                ? {
+                    ...notification,
+                    read: true
+                  }
+                : notification
+          )
+      );
+
+      const {
+        error
+      } =
+        await supabase
+          .from("notifications")
+          .update({
+            read: true
+          })
+          .eq(
+            "id",
+            notificationId
+          );
+
+      if (error) {
+        console.error(
+          "Mark notification read error:",
+          error
+        );
+
+        loadNotifications();
+      }
+    };
+
+  /* =======================================================
+     MARK ALL NOTIFICATIONS AS READ
+  ======================================================= */
+
+  const markAllNotificationsRead =
+    async () => {
+      const {
+        data: authData
+      } =
+        await supabase.auth.getUser();
+
+      const currentUserId =
+        authData?.user?.id;
+
+      if (!currentUserId) return;
+
+      setNotifications(
+        (current) =>
+          current.map(
+            (notification) => ({
+              ...notification,
+              read: true
+            })
+          )
+      );
+
+      const {
+        error
+      } =
+        await supabase
+          .from("notifications")
+          .update({
+            read: true
+          })
+          .eq(
+            "user_id",
+            currentUserId
+          )
+          .eq(
+            "read",
+            false
+          );
+
+      if (error) {
+        console.error(
+          "Mark all notifications read error:",
+          error
+        );
+
+        loadNotifications();
+      }
+    };
+
+  /* =======================================================
+     OPEN NOTIFICATIONS
+  ======================================================= */
+
+  const openNotifications =
+    async () => {
+      setNotificationsOpen(
+        (current) => !current
+      );
+
+      if (!notificationsOpen) {
+        await loadNotifications();
+      }
+    };
+
+  /* =======================================================
+     CURRENT USER PROFILE
+  ======================================================= */
 
   const buildCurrentProfile =
     async (user) => {
@@ -5095,6 +5859,10 @@ function App() {
       return profile;
     };
 
+  /* =======================================================
+     AUTH INITIALIZATION
+  ======================================================= */
+
   useEffect(() => {
     let mounted = true;
 
@@ -5127,6 +5895,12 @@ function App() {
 
           setUserProfile(profile);
           setAuthenticated(true);
+
+          /*
+            NEW:
+            Load notifications after login.
+          */
+          await loadNotifications();
 
         } catch (err) {
           console.error(
@@ -5164,6 +5938,8 @@ function App() {
           ) {
             setAuthenticated(false);
             setUserProfile(null);
+            setNotifications([]);
+            setNotificationsOpen(false);
             setPage("discover");
             setSelected(null);
             return;
@@ -5187,6 +5963,8 @@ function App() {
               setUserProfile(
                 profile
               );
+
+              await loadNotifications();
             }
           }
         }
@@ -5199,6 +5977,91 @@ function App() {
     };
   }, []);
 
+  /* =======================================================
+     REAL-TIME NOTIFICATIONS
+  ======================================================= */
+
+  useEffect(() => {
+    if (!authenticated) return;
+
+    let channel = null;
+
+    const setupNotificationRealtime =
+      async () => {
+        const {
+          data: authData
+        } =
+          await supabase.auth.getUser();
+
+        const currentUserId =
+          authData?.user?.id;
+
+        if (!currentUserId) return;
+
+        channel =
+          supabase
+            .channel(
+              `notifications-${currentUserId}`
+            )
+            .on(
+              "postgres_changes",
+              {
+                event: "INSERT",
+                schema: "public",
+                table: "notifications",
+                filter:
+                  `user_id=eq.${currentUserId}`
+              },
+              (payload) => {
+                const newNotification =
+                  payload.new;
+
+                setNotifications(
+                  (current) => {
+                    if (
+                      current.some(
+                        (notification) =>
+                          notification.id ===
+                          newNotification.id
+                      )
+                    ) {
+                      return current;
+                    }
+
+                    return [
+                      newNotification,
+                      ...current
+                    ].slice(0, 50);
+                  }
+                );
+
+                /*
+                  Show a toast immediately when
+                  a new notification arrives.
+                */
+                if (
+                  newNotification?.message
+                ) {
+                  notify(
+                    newNotification.message
+                  );
+                }
+              }
+            )
+            .subscribe();
+      };
+
+    setupNotificationRealtime();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(
+          channel
+        );
+      }
+    };
+  }, [authenticated]);
+
   const handleAuthenticated =
     (profile) => {
       setUserProfile(profile);
@@ -5209,6 +6072,8 @@ function App() {
         "libdate_authenticated",
         "true"
       );
+
+      loadNotifications();
     };
 
   const handleLogout =
@@ -5231,6 +6096,8 @@ function App() {
       } finally {
         setAuthenticated(false);
         setUserProfile(null);
+        setNotifications([]);
+        setNotificationsOpen(false);
         setSelected(null);
 
         localStorage.removeItem(
@@ -5242,6 +6109,12 @@ function App() {
         );
       }
     };
+
+  const unreadNotifications =
+    notifications.filter(
+      (notification) =>
+        !notification.read
+    ).length;
 
   if (authChecking) {
     return (
@@ -5293,12 +6166,24 @@ function App() {
         setPage={setPage}
         setSelected={setSelected}
         notify={notify}
+        unreadNotifications={
+          unreadNotifications
+        }
+        onNotificationClick={
+          openNotifications
+        }
       />
     ) : page === "person" ? (
       <PersonPage
         person={selected}
         setPage={setPage}
         notify={notify}
+        unreadNotifications={
+          unreadNotifications
+        }
+        onNotificationClick={
+          openNotifications
+        }
       />
     ) : page === "status" ? (
       <StatusPage
@@ -5311,11 +6196,23 @@ function App() {
         setPage={setPage}
         setSelected={setSelected}
         notify={notify}
+        unreadNotifications={
+          unreadNotifications
+        }
+        onNotificationClick={
+          openNotifications
+        }
       />
     ) : page === "messages" ? (
       <Messages
         setPage={setPage}
         setSelected={setSelected}
+        unreadNotifications={
+          unreadNotifications
+        }
+        onNotificationClick={
+          openNotifications
+        }
       />
     ) : page === "chat" ? (
       <Chat
@@ -5336,6 +6233,12 @@ function App() {
         notify={
           notify
         }
+        unreadNotifications={
+          unreadNotifications
+        }
+        onNotificationClick={
+          openNotifications
+        }
       />
     );
 
@@ -5344,7 +6247,7 @@ function App() {
 
       {body}
 
-      {![
+      {![ 
         "person",
         "status",
         "chat"
@@ -5358,6 +6261,28 @@ function App() {
       <Toast
         message={toast}
       />
+
+      {notificationsOpen && (
+        <NotificationPanel
+          notifications={
+            notifications
+          }
+          loading={
+            notificationLoading
+          }
+          onClose={() =>
+            setNotificationsOpen(
+              false
+            )
+          }
+          onMarkRead={
+            markNotificationRead
+          }
+          onMarkAllRead={
+            markAllNotificationsRead
+          }
+        />
+      )}
 
     </div>
   );

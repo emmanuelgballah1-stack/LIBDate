@@ -171,13 +171,18 @@ function calculateAge(dateString) {
 }
 
 function isValidEmail(email) {
-  const cleanedEmail = email.replace(/\\/g, "").trim().toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanedEmail);
+  const cleanedEmail = email
+    .replace(/\\/g, "")
+    .trim()
+    .toLowerCase();
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    cleanedEmail
+  );
 }
 
 /* =========================
    FILE TO DATA URL
-   Used so photos survive refresh.
 ========================= */
 
 function fileToDataUrl(file) {
@@ -195,7 +200,9 @@ function fileToDataUrl(file) {
 
     reader.onerror = () => {
       reject(
-        new Error("Unable to save the profile photo.")
+        new Error(
+          "Unable to save the profile photo."
+        )
       );
     };
 
@@ -260,17 +267,23 @@ function LoginForm({ onLogin, onSignUp }) {
       .toLowerCase();
 
     if (!normalizedEmail) {
-      setError("Please enter your email address.");
+      setError(
+        "Please enter your email address."
+      );
       return;
     }
 
     if (!isValidEmail(normalizedEmail)) {
-      setError("Please enter a valid email address.");
+      setError(
+        "Please enter a valid email address."
+      );
       return;
     }
 
     if (!password) {
-      setError("Please enter your password.");
+      setError(
+        "Please enter your password."
+      );
       return;
     }
 
@@ -287,15 +300,53 @@ function LoginForm({ onLogin, onSignUp }) {
         throw authError;
       }
 
+      /* =========================
+         NEW:
+         Get the authenticated user.
+      ========================= */
+
+      const currentUser =
+        data.user;
+
+      if (!currentUser) {
+        throw new Error(
+          "Unable to identify your account."
+        );
+      }
+
+      const metadata =
+        currentUser.user_metadata || {};
+
       const savedProfile =
-        localStorage.getItem("libdate_profile");
+        localStorage.getItem(
+          "libdate_profile"
+        );
+
+      let profile = null;
+
+      /* =========================
+         NEW:
+         Restore saved local profile
+         when available.
+      ========================= */
 
       if (savedProfile) {
-        const profile = JSON.parse(savedProfile);
-        const savedEmail = (profile.email || "")
-          .replace(/\\/g, "")
-          .trim()
-          .toLowerCase();
+        try {
+          profile =
+            JSON.parse(savedProfile);
+        } catch {
+          profile = null;
+        }
+      }
+
+      if (
+        profile?.email
+      ) {
+        const savedEmail =
+          (profile.email || "")
+            .replace(/\\/g, "")
+            .trim()
+            .toLowerCase();
 
         if (
           savedEmail &&
@@ -306,24 +357,136 @@ function LoginForm({ onLogin, onSignUp }) {
           );
           return;
         }
-
-        onLogin(profile);
-        return;
       }
 
-      const metadata =
-        data.user?.user_metadata || {};
+      /* =========================
+         NEW:
+         Build profile from either
+         localStorage or Supabase metadata.
+      ========================= */
 
-      onLogin({
-        id: data.user?.id || "",
-        firstName: metadata.first_name || "",
-        lastName: metadata.last_name || "",
-        displayName: metadata.display_name || "",
-        location: metadata.location || "",
-        dob: metadata.dob || "",
-        email: data.user?.email || normalizedEmail,
-        profilePhoto: ""
-      });
+      profile = {
+        id:
+          currentUser.id,
+
+        firstName:
+          profile?.firstName ||
+          metadata.first_name ||
+          "",
+
+        lastName:
+          profile?.lastName ||
+          metadata.last_name ||
+          "",
+
+        displayName:
+          profile?.displayName ||
+          metadata.display_name ||
+          "",
+
+        location:
+          profile?.location ||
+          metadata.location ||
+          "",
+
+        dob:
+          profile?.dob ||
+          metadata.dob ||
+          "",
+
+        age:
+          profile?.age ||
+          calculateAge(
+            profile?.dob ||
+            metadata.dob ||
+            ""
+          ),
+
+        email:
+          currentUser.email ||
+          normalizedEmail,
+
+        profilePhoto:
+          profile?.profilePhoto ||
+          "",
+
+        liveSelfie:
+          profile?.liveSelfie ||
+          "",
+
+        createdAt:
+          profile?.createdAt ||
+          new Date().toISOString()
+      };
+
+      /* =========================
+         NEW:
+         SAVE PROFILE TO SUPABASE
+         
+         This is the important fix.
+         It runs AFTER login, when the
+         user definitely has an active
+         authenticated session.
+      ========================= */
+
+      const { error: profileError } =
+        await supabase
+          .from("profiles")
+          .upsert(
+            {
+              id: currentUser.id,
+
+              first_name:
+                profile.firstName,
+
+              last_name:
+                profile.lastName,
+
+              display_name:
+                profile.displayName,
+
+              location:
+                profile.location,
+
+              dob:
+                profile.dob || null,
+
+              profile_photo_path:
+                profile.profilePhoto ||
+                null
+            },
+            {
+              onConflict: "id"
+            }
+          );
+
+      if (profileError) {
+        console.error(
+          "Supabase profile save error during login:",
+          profileError
+        );
+
+        throw new Error(
+          "You logged in successfully, but your profile could not be saved. Please try again."
+        );
+      }
+
+      /* =========================
+         SAVE UPDATED PROFILE LOCALLY
+      ========================= */
+
+      localStorage.setItem(
+        "libdate_profile",
+        JSON.stringify(profile)
+      );
+
+      localStorage.setItem(
+        "libdate_authenticated",
+        "true"
+      );
+
+      onLogin(profile);
+
     } catch (err) {
       console.error(
         "Supabase login error:",
@@ -428,7 +591,10 @@ function LoginForm({ onLogin, onSignUp }) {
           disabled={loading}
         >
           <LogIn size={18} />
-          {loading ? "Logging in..." : "Log In"}
+
+          {loading
+            ? "Logging in..."
+            : "Log In"}
         </button>
 
       </form>
@@ -512,7 +678,8 @@ function SignupFlow({
         return;
       }
 
-      const age = calculateAge(form.dob);
+      const age =
+        calculateAge(form.dob);
 
       if (age < 18) {
         setError(
@@ -620,24 +787,30 @@ function SignupFlow({
     setError("");
   };
 
-  /*
-    This runs after the live selfie has been captured.
+  /* =========================
+     FINISH SIGNUP
+  ========================= */
 
-    We convert the uploaded photo into a permanent
-    data URL because blob URLs disappear after refresh.
-  */
-
-  const finishSignup = async (liveSelfie) => {
+  const finishSignup = async (
+    liveSelfie
+  ) => {
     try {
       setError("");
 
-      const normalizedEmail = form.email
-        .replace(/\\/g, "")
-        .trim()
-        .toLowerCase();
+      const normalizedEmail =
+        form.email
+          .replace(/\\/g, "")
+          .trim()
+          .toLowerCase();
 
-      if (!isValidEmail(normalizedEmail)) {
-        setError("Please enter a valid email address.");
+      if (
+        !isValidEmail(
+          normalizedEmail
+        )
+      ) {
+        setError(
+          "Please enter a valid email address."
+        );
         return;
       }
 
@@ -646,17 +819,29 @@ function SignupFlow({
           form.profilePhoto
         );
 
-      const { data, error: signupError } =
+      const {
+        data,
+        error: signupError
+      } =
         await supabase.auth.signUp({
           email: normalizedEmail,
           password: form.password,
           options: {
             data: {
-              first_name: form.firstName.trim(),
-              last_name: form.lastName.trim(),
-              display_name: form.displayName.trim(),
-              location: form.location.trim(),
-              dob: form.dob
+              first_name:
+                form.firstName.trim(),
+
+              last_name:
+                form.lastName.trim(),
+
+              display_name:
+                form.displayName.trim(),
+
+              location:
+                form.location.trim(),
+
+              dob:
+                form.dob
             }
           }
         });
@@ -666,28 +851,100 @@ function SignupFlow({
       }
 
       if (!data.user) {
-        throw new Error("Unable to create your account.");
+        throw new Error(
+          "Unable to create your account."
+        );
       }
 
       const profile = {
-        id: data.user.id,
-        firstName: form.firstName,
-        lastName: form.lastName,
-        displayName: form.displayName,
-        location: form.location,
-        dob: form.dob,
-        age: calculateAge(form.dob),
-        email: normalizedEmail,
+        id:
+          data.user.id,
+
+        firstName:
+          form.firstName,
+
+        lastName:
+          form.lastName,
+
+        displayName:
+          form.displayName,
+
+        location:
+          form.location,
+
+        dob:
+          form.dob,
+
+        age:
+          calculateAge(form.dob),
+
+        email:
+          normalizedEmail,
 
         profilePhoto:
           profilePhotoData ||
           form.profilePhotoPreview,
 
-        liveSelfie: liveSelfie || "",
+        liveSelfie:
+          liveSelfie || "",
 
         createdAt:
           new Date().toISOString()
       };
+
+      /* =========================
+         IF EMAIL CONFIRMATION IS OFF
+         SAVE PROFILE IMMEDIATELY.
+      ========================= */
+
+      if (data.session) {
+
+        const {
+          error: profileError
+        } =
+          await supabase
+            .from("profiles")
+            .upsert(
+              {
+                id:
+                  data.user.id,
+
+                first_name:
+                  form.firstName.trim(),
+
+                last_name:
+                  form.lastName.trim(),
+
+                display_name:
+                  form.displayName.trim(),
+
+                location:
+                  form.location.trim(),
+
+                dob:
+                  form.dob,
+
+                profile_photo_path:
+                  profilePhotoData ||
+                  form.profilePhotoPreview ||
+                  null
+              },
+              {
+                onConflict: "id"
+              }
+            );
+
+        if (profileError) {
+          console.error(
+            "Supabase profile save error:",
+            profileError
+          );
+
+          throw new Error(
+            "Your account was created, but we could not save your profile. Please try again."
+          );
+        }
+      }
 
       localStorage.setItem(
         "libdate_profile",
@@ -695,6 +952,7 @@ function SignupFlow({
       );
 
       if (data.session) {
+
         localStorage.setItem(
           "libdate_authenticated",
           "true"
@@ -711,6 +969,7 @@ function SignupFlow({
       onLogin();
 
     } catch (err) {
+
       console.error(
         "Supabase signup error:",
         err
@@ -1502,12 +1761,6 @@ function LiveVerificationStep({
 
     setVerifying(false);
 
-    /*
-      IMPORTANT:
-      We pass the captured selfie back
-      to SignupFlow so it can be saved.
-    */
-
     onVerified(selfie);
   };
 
@@ -1874,7 +2127,9 @@ function StatusPage({
 
           <button
             type="button"
-            onClick={() => setPage("discover")}
+            onClick={() =>
+              setPage("discover")
+            }
             aria-label="Back to discover"
             style={{
               position: "absolute",
@@ -1885,7 +2140,8 @@ function StatusPage({
               height: "42px",
               border: 0,
               borderRadius: "50%",
-              background: "rgba(0,0,0,.42)",
+              background:
+                "rgba(0,0,0,.42)",
               color: "#fff",
               fontSize: "26px",
               lineHeight: 1,
@@ -1910,7 +2166,8 @@ function StatusPage({
               style={{
                 height: "3px",
                 width: "100%",
-                background: "rgba(255,255,255,.35)",
+                background:
+                  "rgba(255,255,255,.35)",
                 borderRadius: "999px",
                 overflow: "hidden"
               }}
@@ -1972,6 +2229,7 @@ function StatusPage({
               >
                 {person.name}, {person.age}
               </strong>
+
               <span
                 style={{
                   display: "block",
@@ -2013,10 +2271,12 @@ function StatusPage({
                 display: "block",
                 fontSize: "21px",
                 lineHeight: 1.35,
-                textShadow: "0 2px 12px rgba(0,0,0,.4)"
+                textShadow:
+                  "0 2px 12px rgba(0,0,0,.4)"
               }}
             >
-              {person.status || "No status added yet."}
+              {person.status ||
+                "No status added yet."}
             </strong>
 
             <button
@@ -2029,12 +2289,15 @@ function StatusPage({
                 marginTop: "16px",
                 padding: "10px 16px",
                 borderRadius: "999px",
-                border: "1px solid rgba(255,255,255,.55)",
-                background: "rgba(255,255,255,.14)",
+                border:
+                  "1px solid rgba(255,255,255,.55)",
+                background:
+                  "rgba(255,255,255,.14)",
                 color: "#fff",
                 fontWeight: 700,
                 cursor: "pointer",
-                backdropFilter: "blur(8px)"
+                backdropFilter:
+                  "blur(8px)"
               }}
             >
               View {person.name}'s profile
@@ -2097,11 +2360,15 @@ function PersonCard({
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(0,0,0,.22)"
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,.22)"
           }}
         >
           <img
-            src={person.photos?.[0] || person.image}
+            src={
+              person.photos?.[0] ||
+              person.image
+            }
             alt=""
             style={{
               width: "100%",
@@ -2116,42 +2383,60 @@ function PersonCard({
       </div>
 
       <div className="person-info">
+
         <div className="name-line">
+
           <h1>
             {person.name},{" "}
             {person.age}
           </h1>
 
           <ShieldCheck size={18} />
+
         </div>
 
         <div className="location">
+
           <MapPin size={14} />
+
           {person.city}
+
         </div>
 
         <div className="chips">
-          {person.interests.map((x) => (
-            <span key={x}>
-              {x}
-            </span>
-          ))}
+
+          {(person.interests || [])
+            .map((x) => (
+              <span key={x}>
+                {x}
+              </span>
+            ))}
+
         </div>
 
         <div className="compat">
+
           <Sparkles size={14} />
+
           {person.compatibility}%
           connection
+
         </div>
+
       </div>
 
       <div
         className="card-actions"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) =>
+          e.stopPropagation()
+        }
       >
+
         <button
           className={`round pass ${
-            passed ? "selected" : ""
+            passed
+              ? "selected"
+              : ""
           }`}
           onClick={onPass}
           aria-label={`Dislike ${person.name}`}
@@ -2161,7 +2446,9 @@ function PersonCard({
 
         <button
           className={`round connect ${
-            liked ? "selected" : ""
+            liked
+              ? "selected"
+              : ""
           }`}
           onClick={onConnect}
           aria-label={`Like ${person.name}`}
@@ -2174,10 +2461,13 @@ function PersonCard({
             }
           />
         </button>
+
       </div>
+
     </article>
   );
-} 
+}
+
 /* =========================
    DISCOVER
 ========================= */
@@ -2187,30 +2477,257 @@ function Discover({
   setSelected,
   notify
 }) {
-  const [likes, setLikes] = useState({});
-  const [passes, setPasses] = useState({});
-  
+  const [likes, setLikes] =
+    useState({});
 
-  const handleLike = (person) => {
-    setLikes((current) => ({
-      ...current,
-      [person.id]: true
-    }));
+  const [passes, setPasses] =
+    useState({});
 
-    // The person stays in the feed.
-    // Real Supabase notification will be added next.
+  /* =========================
+     NEW:
+     Registered users from Supabase
+  ========================= */
+
+  const [dbPeople, setDbPeople] =
+    useState([]);
+
+  const [searchTerm, setSearchTerm] =
+    useState("");
+
+  const [loadingPeople, setLoadingPeople] =
+    useState(true);
+
+  const [profileError, setProfileError] =
+    useState("");
+
+  /* =========================
+     NEW:
+     Load registered users
+  ========================= */
+
+  const loadProfiles = async () => {
+    try {
+      setLoadingPeople(true);
+      setProfileError("");
+
+      const {
+        data: authData,
+        error: authError
+      } =
+        await supabase.auth.getUser();
+
+      if (authError) {
+        console.error(
+          "Unable to get current user:",
+          authError
+        );
+      }
+
+      const currentUserId =
+        authData?.user?.id || "";
+
+      const {
+        data,
+        error
+      } =
+        await supabase
+          .from("profiles")
+          .select(
+            `
+              id,
+              first_name,
+              last_name,
+              display_name,
+              location,
+              dob,
+              profile_photo_path,
+              created_at
+            `
+          )
+          .order(
+            "created_at",
+            {
+              ascending: false
+            }
+          );
+
+      if (error) {
+        console.error(
+          "Supabase profiles loading error:",
+          error
+        );
+
+        setProfileError(
+          "Unable to load registered users."
+        );
+
+        return;
+      }
+
+      /* =========================
+         Convert database profiles
+         into the existing PersonCard
+         format.
+      ========================= */
+
+      const mappedPeople =
+        (data || [])
+          .filter(
+            (profile) =>
+              profile.id !==
+              currentUserId
+          )
+          .map((profile) => {
+
+            const displayName =
+              profile.display_name ||
+              `${profile.first_name || ""} ${profile.last_name || ""}`
+                .trim() ||
+              "LIBDate User";
+
+            const age =
+              calculateAge(
+                profile.dob
+              );
+
+            const image =
+              profile.profile_photo_path ||
+              "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=85";
+
+            return {
+              id:
+                `db-${profile.id}`,
+
+              databaseId:
+                profile.id,
+
+              name:
+                displayName,
+
+              age:
+                age || 18,
+
+              city:
+                profile.location ||
+                "Liberia",
+
+              distance:
+                "Nearby",
+
+              image,
+
+              bio:
+                "New to LIBDate.",
+
+              interests: [],
+
+              intention:
+                "Dating",
+
+              compatibility:
+                80,
+
+              status:
+                "New to LIBDate ✨",
+
+              photos:
+                [image]
+            };
+          });
+
+      setDbPeople(
+        mappedPeople
+      );
+
+    } catch (err) {
+
+      console.error(
+        "Unexpected profile loading error:",
+        err
+      );
+
+      setProfileError(
+        "Unable to load registered users."
+      );
+
+    } finally {
+      setLoadingPeople(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfiles();
+  }, []);
+
+  /* =========================
+     COMBINE SAMPLE + REAL USERS
+  ========================= */
+
+  const allPeople = [
+    ...dbPeople,
+    ...people
+  ];
+
+  /* =========================
+     SEARCH
+  ========================= */
+
+  const normalizedSearch =
+    searchTerm
+      .trim()
+      .toLowerCase();
+
+  const visiblePeople =
+    allPeople.filter(
+      (person) => {
+
+        if (!normalizedSearch) {
+          return true;
+        }
+
+        return (
+          person.name
+            .toLowerCase()
+            .includes(
+              normalizedSearch
+            ) ||
+
+          person.city
+            .toLowerCase()
+            .includes(
+              normalizedSearch
+            )
+        );
+      }
+    );
+
+  const handleLike = (
+    person
+  ) => {
+
+    setLikes(
+      (current) => ({
+        ...current,
+        [person.id]: true
+      })
+    );
+
     notify(
       `You liked ${person.name} ❤️`
     );
   };
 
-  const handlePass = (person) => {
-    setPasses((current) => ({
-      ...current,
-      [person.id]: true
-    }));
+  const handlePass = (
+    person
+  ) => {
 
-    // The person stays in the feed.
+    setPasses(
+      (current) => ({
+        ...current,
+        [person.id]: true
+      })
+    );
+
     notify(
       `You passed on ${person.name}`
     );
@@ -2218,12 +2735,15 @@ function Discover({
 
   return (
     <div className="screen">
+
       <Header />
 
       <main className="content discover-page">
 
         <div className="discover-heading">
+
           <div>
+
             <p className="eyebrow">
               DISCOVER
             </p>
@@ -2231,67 +2751,210 @@ function Discover({
             <h2>
               Find your connection.
             </h2>
+
           </div>
 
           <button className="filter">
+
             <SlidersHorizontal
               size={18}
             />
+
           </button>
+
         </div>
 
         <div className="location-pill">
+
           <MapPin size={15} />
+
           Monrovia
 
           <ChevronLeft
             className="rotate90"
             size={14}
           />
+
         </div>
+
+        {/* =========================
+            NEW SEARCH BOX
+        ========================= */}
+
+        <div
+          className="search"
+          style={{
+            marginTop: "14px"
+          }}
+        >
+
+          <Search size={18} />
+
+          <input
+            value={searchTerm}
+            onChange={(e) =>
+              setSearchTerm(
+                e.target.value
+              )
+            }
+            placeholder="Search people..."
+          />
+
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() =>
+                setSearchTerm("")
+              }
+              style={{
+                border: 0,
+                background:
+                  "transparent",
+                cursor: "pointer",
+                padding: 0,
+                display: "flex",
+                alignItems: "center"
+              }}
+              aria-label="Clear search"
+            >
+              <X size={17} />
+            </button>
+          )}
+
+        </div>
+
+        {loadingPeople && (
+          <p
+            style={{
+              margin:
+                "14px 0",
+              color:
+                "#6b7280",
+              fontSize:
+                "13px"
+            }}
+          >
+            Loading people...
+          </p>
+        )}
+
+        {profileError && (
+          <p
+            style={{
+              margin:
+                "14px 0",
+              color:
+                "#b91c1c",
+              fontSize:
+                "13px"
+            }}
+          >
+            {profileError}
+          </p>
+        )}
 
         <div className="discover-feed">
-          {people.map((person) => (
-            <PersonCard
-              key={person.id}
-              person={person}
-              liked={!!likes[person.id]}
-              passed={!!passes[person.id]}
 
-              onConnect={() =>
-                handleLike(person)
-              }
+          {visiblePeople.map(
+            (person) => (
+              <PersonCard
+                key={person.id}
+                person={person}
+                liked={
+                  !!likes[
+                    person.id
+                  ]
+                }
+                passed={
+                  !!passes[
+                    person.id
+                  ]
+                }
 
-              onPass={() =>
-                handlePass(person)
-              }
+                onConnect={() =>
+                  handleLike(
+                    person
+                  )
+                }
 
-              onOpen={() => {
-                setSelected(person);
-                setPage("person");
-              }}
-              onStatusOpen={() => {
-                setSelected(person);
-                setPage("status");
-              }}
-            />
-          ))}
+                onPass={() =>
+                  handlePass(
+                    person
+                  )
+                }
+
+                onOpen={() => {
+                  setSelected(
+                    person
+                  );
+
+                  setPage(
+                    "person"
+                  );
+                }}
+
+                onStatusOpen={() => {
+                  setSelected(
+                    person
+                  );
+
+                  setPage(
+                    "status"
+                  );
+                }}
+              />
+            )
+          )}
+
         </div>
 
+        {!loadingPeople &&
+          visiblePeople.length ===
+            0 && (
+            <div
+              style={{
+                textAlign:
+                  "center",
+                padding:
+                  "40px 20px",
+                color:
+                  "#6b7280"
+              }}
+            >
+
+              <Search
+                size={30}
+                style={{
+                  marginBottom:
+                    "10px"
+                }}
+              />
+
+              <p>
+                No people found.
+              </p>
+
+            </div>
+          )}
+
         <div className="feed-end">
+
           <Sparkles size={17} />
 
           <span>
+
             You've reached the end of
             the people currently available.
+
           </span>
+
         </div>
 
-
       </main>
+
     </div>
   );
-} 
+}
 
 /* =========================
    PERSON PAGE
@@ -2309,6 +2972,7 @@ function PersonPage({
 
   return (
     <div className="screen">
+
       <Header
         title="Profile"
         back
@@ -2318,17 +2982,22 @@ function PersonPage({
       />
 
       <main className="content profile-detail">
+
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            padding: "8px 0 20px"
+            padding:
+              "8px 0 20px"
           }}
         >
+
           <button
             type="button"
-            onClick={() => setPage("status")}
+            onClick={() =>
+              setPage("status")
+            }
             aria-label={`View ${person.name}'s status`}
             style={{
               width: "92px",
@@ -2338,10 +3007,13 @@ function PersonPage({
               borderRadius: "50%",
               background:
                 "linear-gradient(135deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5)",
-              cursor: "pointer",
-              boxSizing: "border-box"
+              cursor:
+                "pointer",
+              boxSizing:
+                "border-box"
             }}
           >
+
             <span
               style={{
                 display: "block",
@@ -2350,11 +3022,16 @@ function PersonPage({
                 borderRadius: "50%",
                 padding: "3px",
                 background: "#fff",
-                boxSizing: "border-box"
+                boxSizing:
+                  "border-box"
               }}
             >
+
               <img
-                src={person.photos?.[0] || person.image}
+                src={
+                  person.photos?.[0] ||
+                  person.image
+                }
                 alt={`${person.name} status`}
                 style={{
                   width: "100%",
@@ -2364,7 +3041,9 @@ function PersonPage({
                   display: "block"
                 }}
               />
+
             </span>
+
           </button>
 
           <div
@@ -2373,14 +3052,17 @@ function PersonPage({
               textAlign: "center"
             }}
           >
+
             <strong
               style={{
                 display: "block",
                 fontSize: "20px"
               }}
             >
-              {person.name}, {person.age}
+              {person.name},{" "}
+              {person.age}
             </strong>
+
             <span
               style={{
                 color: "#6b7280",
@@ -2389,28 +3071,42 @@ function PersonPage({
             >
               Tap the status circle to view recent status
             </span>
+
           </div>
+
         </div>
 
         <div className="detail-main">
+
           <div className="name-line">
+
             <h1>
               {person.name},{" "}
               {person.age}
             </h1>
-            <ShieldCheck size={20} />
+
+            <ShieldCheck
+              size={20}
+            />
+
           </div>
 
           <div className="location">
+
             <MapPin size={15} />
+
             {person.city} ·{" "}
             {person.distance}
+
           </div>
 
           <div className="compat big">
+
             <Sparkles size={15} />
+
             {person.compatibility}%
             connection
+
           </div>
 
           <h3>
@@ -2426,13 +3122,16 @@ function PersonPage({
           </h3>
 
           <div className="chips large">
-            {person.interests.map(
-              (x) => (
-                <span key={x}>
-                  {x}
-                </span>
-              )
-            )}
+
+            {(person.interests || [])
+              .map(
+                (x) => (
+                  <span key={x}>
+                    {x}
+                  </span>
+                )
+              )}
+
           </div>
 
           <h3>
@@ -2440,8 +3139,11 @@ function PersonPage({
           </h3>
 
           <div className="intent">
+
             <Heart size={16} />
+
             {person.intention}
+
           </div>
 
           <h3>
@@ -2454,23 +3156,30 @@ function PersonPage({
               gridTemplateColumns:
                 "repeat(3, 1fr)",
               gap: "7px",
-              marginBottom: "22px"
+              marginBottom:
+                "22px"
             }}
           >
-            {photos.map((photo, index) => (
-              <img
-                key={`${photo}-${index}`}
-                src={photo}
-                alt={`${person.name} photo ${index + 1}`}
-                style={{
-                  width: "100%",
-                  aspectRatio: "1",
-                  objectFit: "cover",
-                  borderRadius: "10px",
-                  display: "block"
-                }}
-              />
-            ))}
+
+            {photos.map(
+              (photo, index) => (
+                <img
+                  key={`${photo}-${index}`}
+                  src={photo}
+                  alt={`${person.name} photo ${index + 1}`}
+                  style={{
+                    width: "100%",
+                    aspectRatio: "1",
+                    objectFit:
+                      "cover",
+                    borderRadius:
+                      "10px",
+                    display: "block"
+                  }}
+                />
+              )
+            )}
+
           </div>
 
           <button
@@ -2483,8 +3192,11 @@ function PersonPage({
           >
             💙 Send Connection
           </button>
+
         </div>
+
       </main>
+
     </div>
   );
 }
@@ -2566,7 +3278,9 @@ function Connections({
                 className="connection-row"
                 key={p.id}
                 onClick={() =>
-                  setPage("messages")
+                  setPage(
+                    "messages"
+                  )
                 }
               >
 
@@ -2706,7 +3420,9 @@ function Messages({
                 className="chat-row"
                 key={p.id}
                 onClick={() =>
-                  setPage("chat")
+                  setPage(
+                    "chat"
+                  )
                 }
               >
 
@@ -2803,7 +3519,9 @@ function Chat({
         title="Sarah K."
         back
         onBack={() =>
-          setPage("messages")
+          setPage(
+            "messages"
+          )
         }
         right={
           <span className="chat-status">
@@ -2889,7 +3607,9 @@ function Chat({
           <input
             value={text}
             onChange={(e) =>
-              setText(e.target.value)
+              setText(
+                e.target.value
+              )
             }
             onKeyDown={(e) => {
 
@@ -2903,7 +3623,9 @@ function Chat({
             placeholder="Write a message..."
           />
 
-          <button onClick={send}>
+          <button
+            onClick={send}
+          >
             <Send size={18} />
           </button>
 
@@ -2919,16 +3641,21 @@ function Chat({
    PROFILE
 ========================= */
 
-function Profile({ userProfile }) {
+function Profile({
+  userProfile
+}) {
 
   const fullName =
     userProfile?.displayName ||
-    `${userProfile?.firstName || ""} ${userProfile?.lastName || ""}`.trim() ||
+    `${userProfile?.firstName || ""} ${userProfile?.lastName || ""}`
+      .trim() ||
     "Your Profile";
 
   const age =
     userProfile?.age ||
-    calculateAge(userProfile?.dob);
+    calculateAge(
+      userProfile?.dob
+    );
 
   const location =
     userProfile?.location ||
@@ -2972,7 +3699,9 @@ function Profile({ userProfile }) {
               </>
             )}
 
-            <ShieldCheck size={18} />
+            <ShieldCheck
+              size={18}
+            />
 
           </h2>
 
@@ -3067,10 +3796,6 @@ function Toast({
 
 function App() {
 
-  /*
-    Restore the login state when the app starts.
-  */
-
   const [authenticated, setAuthenticated] =
     useState(() => {
       return (
@@ -3079,10 +3804,6 @@ function App() {
         ) === "true"
       );
     });
-
-  /*
-    Restore the user's profile when the app starts.
-  */
 
   const [userProfile, setUserProfile] =
     useState(() => {
@@ -3114,7 +3835,9 @@ function App() {
   const [toast, setToast] =
     useState("");
 
-  const notify = (message) => {
+  const notify = (
+    message
+  ) => {
 
     setToast(message);
 
@@ -3123,33 +3846,32 @@ function App() {
     }, 2200);
   };
 
-  /*
-    Save profile and authentication state.
-  */
-
   const handleAuthenticated =
     (profile) => {
 
       if (profile) {
-        setUserProfile(profile);
+
+        setUserProfile(
+          profile
+        );
 
         localStorage.setItem(
           "libdate_profile",
-          JSON.stringify(profile)
+          JSON.stringify(
+            profile
+          )
         );
       }
 
-      setAuthenticated(true);
+      setAuthenticated(
+        true
+      );
 
       localStorage.setItem(
         "libdate_authenticated",
         "true"
       );
     };
-
-  /* =========================
-     AUTHENTICATION FIRST
-  ========================= */
 
   if (!authenticated) {
 
@@ -3161,10 +3883,6 @@ function App() {
       />
     );
   }
-
-  /* =========================
-     MAIN PAGE ROUTING
-  ========================= */
 
   const body =
     page === "discover" ? (
@@ -3199,7 +3917,9 @@ function App() {
       />
     ) : (
       <Profile
-        userProfile={userProfile}
+        userProfile={
+          userProfile
+        }
       />
     );
 

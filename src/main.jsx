@@ -1050,14 +1050,15 @@ function SignupFlow({
       }
 
       /*
-        Supabase returns a session when email confirmation
-        is disabled. LIBDate needs that session so the new
-        user can immediately create their profile row.
+        If email confirmation is enabled, Supabase does not
+        return a session yet. The user must confirm the email
+        before LIBDate can save the profile as an authenticated user.
       */
       if (!data.session) {
-        setError(
-          "Your account was created, but email confirmation is enabled in Supabase. Please disable email confirmation in Supabase Authentication settings so users can log in immediately."
+        alert(
+          "Your account was created, but email confirmation is still enabled in Supabase. Please confirm your email, then log in."
         );
+        onLogin();
         return;
       }
 
@@ -1159,12 +1160,15 @@ function SignupFlow({
         err
       );
 
-      setError(
+      alert(
         err?.message ||
         "We could not create your account. Please try again."
       );
+
+      throw err;
     }
   };
+
   return (
     <div className="signup-flow">
 
@@ -1912,9 +1916,11 @@ function LiveVerificationStep({
         )
     );
 
-    setVerifying(false);
-
-    onVerified(selfie);
+    try {
+      await onVerified(selfie);
+    } finally {
+      setVerifying(false);
+    }
   };
 
   return (

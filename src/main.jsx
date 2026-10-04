@@ -1043,10 +1043,22 @@ function SignupFlow({
         throw signupError;
       }
 
-      if (!data.user) {
+      if (!data?.user) {
         throw new Error(
           "Unable to create your account."
         );
+      }
+
+      /*
+        Supabase returns a session when email confirmation
+        is disabled. LIBDate needs that session so the new
+        user can immediately create their profile row.
+      */
+      if (!data.session) {
+        setError(
+          "Your account was created, but email confirmation is enabled in Supabase. Please disable email confirmation in Supabase Authentication settings so users can log in immediately."
+        );
+        return;
       }
 
       const profile = {
@@ -1086,69 +1098,60 @@ function SignupFlow({
           new Date().toISOString()
       };
 
-      if (data.session) {
-        const {
-          error: profileError
-        } =
-          await supabase
-            .from("profiles")
-            .upsert(
-              {
-                id: data.user.id,
+      const {
+        error: profileError
+      } =
+        await supabase
+          .from("profiles")
+          .upsert(
+            {
+              id: data.user.id,
 
-                first_name:
-                  profile.firstName,
+              first_name:
+                profile.firstName,
 
-                last_name:
-                  profile.lastName,
+              last_name:
+                profile.lastName,
 
-                display_name:
-                  profile.displayName,
+              display_name:
+                profile.displayName,
 
-                location:
-                  profile.location,
+              location:
+                profile.location,
 
-                dob:
-                  profile.dob,
+              dob:
+                profile.dob,
 
-                phone: null,
+              phone: null,
 
-                profile_photo_path:
-                  profile.profilePhoto ||
-                  null,
+              profile_photo_path:
+                profile.profilePhoto ||
+                null,
 
-                live_selfie_path:
-                  profile.liveSelfie ||
-                  null
-              },
-              {
-                onConflict: "id"
-              }
-            );
+              live_selfie_path:
+                profile.liveSelfie ||
+                null
+            },
+            {
+              onConflict: "id"
+            }
+          );
 
-        if (profileError) {
-          throw profileError;
-        }
-
-        localStorage.setItem(
-          "libdate_profile",
-          JSON.stringify(profile)
-        );
-
-        localStorage.setItem(
-          "libdate_authenticated",
-          "true"
-        );
-
-        onComplete(profile);
-        return;
+      if (profileError) {
+        throw profileError;
       }
 
-      alert(
-        "Account created. Please check your email to confirm your account, then log in."
+      localStorage.setItem(
+        "libdate_profile",
+        JSON.stringify(profile)
       );
 
-      onLogin();
+      localStorage.setItem(
+        "libdate_authenticated",
+        "true"
+      );
+
+      onComplete(profile);
 
     } catch (err) {
       console.error(
@@ -1162,7 +1165,6 @@ function SignupFlow({
       );
     }
   };
-
   return (
     <div className="signup-flow">
 
